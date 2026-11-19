@@ -1,0 +1,61 @@
+CINE SOFA - como usar no Windows
+=================================
+
+1) Instale o Node.js (versao LTS): https://nodejs.org
+2) Extraia esta pasta, abra-a, clique na barra de endereco do Explorer,
+   digite "cmd" e aperte Enter.
+3) Rode (so na primeira vez):   npm install
+4) Rode:                        npm start
+5) Abra http://localhost:3000 no navegador e crie uma sala.
+
+AMIGOS FORA DA SUA CASA
+-----------------------
+Instale o cloudflared (https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)
+e, com o site rodando, abra outro terminal e digite:
+
+   cloudflared tunnel --url http://localhost:3000
+
+Ele mostra um endereco https://....trycloudflare.com . Abra esse endereco,
+crie a sala e use o botao "Copiar convite" para mandar aos amigos.
+
+TRES FORMAS DE ASSISTIR
+-----------------------
+- Link de video (.mp4/.webm direto): todo mundo carrega do link, play/pausa
+  e avanco ficam sincronizados. Leve para o seu upload.
+- Arquivo do PC: voce escolhe o filme, os amigos escolhem o MESMO arquivo
+  no PC deles. Nada e enviado pela internet, so os comandos de sincronia.
+  E o melhor modo para 15 a 20 pessoas.
+- Tela compartilhada: voce transmite a tela e o som. A qualidade cai
+  automaticamente conforme entra mais gente, porque o seu upload e dividido
+  entre todos. Ate ~6 pessoas fica bom; com 15-20, fica em qualidade basica.
+
+YOUTUBE E OUTRAS PLATAFORMAS
+----------------------------
+- YouTube: clique em "Colar link (YouTube ou .mp4)" e cole o link do video.
+  Play, pausa e avanco ficam sincronizados. Alguns videos bloqueiam a
+  exibicao fora do YouTube e nao abrem.
+- Netflix, Prime Video, Disney+ e similares: nao podem ser embutidos num
+  site nem aparecem na tela compartilhada (protecao contra copia = tela preta).
+  Cada pessoa abre na propria conta e usa o botao "Contagem para dar play":
+  todos veem 5, 4, 3... e apertam play juntos. O chat continua funcionando.
+
+TRANSMITIR ARQUIVO (so voce tem o filme)
+----------------------------------------
+Clique em "Transmitir arquivo para todos", escolha o filme e de play.
+Os amigos recebem imagem e som direto no navegador, sem ter o arquivo.
+Pausar e avancar no seu player vale para todos.
+A qualidade cai conforme entra mais gente, pois o SEU upload e dividido:
+  ate 6 pessoas  -> ate 3 Mbps cada (imagem boa)
+  7 a 11 pessoas -> 1,5 Mbps cada, resolucao reduzida
+  12 a 20        -> 0,8 Mbps cada, resolucao reduzida pela metade
+Confira seu upload em fast.com ou speedtest.net: para 15 pessoas a
+qualidade basica pede uns 15 Mbps de envio.
+
+COLOCAR ONLINE PARA SEMPRE (Render)
+-----------------------------------
+1) Crie conta em github.com e um repositorio novo (privado serve).
+   Envie o conteudo desta pasta (o arquivo .gitignore ja evita enviar node_modules).
+2) Crie conta em render.com e clique em New > Web Service > conecte o repositorio.
+3) Build Command: npm install    Start Command: npm start
+4) Em Instance Type escolha "Starter" (cerca de US$ 7/mes, nao dorme).
+5) Pronto: voce recebe um endereco fixo https://nome.onrender.com

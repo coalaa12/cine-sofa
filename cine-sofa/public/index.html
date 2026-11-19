@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cine Sofá</title>
+<style>
+:root{--bg:#17112b;--panel:#231b42;--line:#3a2f63;--ink:#f4eeff;--mute:#a99ccb;--lamp:#ffc857;--red:#c2334d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+h1{font:700 clamp(2.4rem,7vw,4.5rem)/1 Georgia,"Times New Roman",serif;margin:0 0 .4em;letter-spacing:-.02em}
+button,input{font:inherit;color:inherit}
+button{background:var(--lamp);color:#2a1d00;border:0;border-radius:8px;padding:.6em 1em;font-weight:600;cursor:pointer}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button:hover{filter:brightness(1.1)}
+:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+input{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.6em .8em;width:100%}
+.hide{display:none!important}
+#lobby{min-height:100vh;display:grid;place-content:center;padding:24px;max-width:520px;margin:auto}
+#lobby p{color:var(--mute);margin:0 0 1.5em}
+#lobby label{display:block;margin:0 0 1em;color:var(--mute);font-size:.9rem}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1}
+#room{display:grid;grid-template-columns:1fr 330px;gap:16px;padding:16px;min-height:100vh}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.top b{font:700 1.3rem Georgia,serif}
+.top span{color:var(--mute)}
+.top .sp{flex:1}
+.stage{background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;border:2px solid var(--line)}
+.stage video{width:100%;height:100%;background:#000}
+#ytbox{width:100%;height:100%}#ytbox iframe{width:100%;height:100%;border:0}
+.empty{color:var(--mute);padding:24px;text-align:center}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.note{margin-top:12px;padding:12px;border-radius:8px;background:var(--panel);border-left:4px solid var(--lamp)}
+aside{background:var(--panel);border-radius:12px;display:flex;flex-direction:column;height:calc(100vh - 32px);border:1px solid var(--line)}
+#who{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--mute);font-size:.9rem}
+#log{flex:1;overflow:auto;padding:12px 14px}
+#log p{margin:0 0 .6em;overflow-wrap:anywhere}
+#log b{color:var(--lamp)}
+#log i{color:var(--mute)}
+#chat{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--red);padding:.6em 1em;border-radius:8px}
+@media(max-width:860px){#room{grid-template-columns:1fr}aside{height:420px}}
+</style>
+</head>
+<body>
+
+<main id="lobby">
+  <h1>Cine Sofá</h1>
+  <p>Assista com os amigos, cada um no seu sofá. Entre numa sala ou crie uma nova e mande o link.</p>
+  <label>Seu nome<input id="name" maxlength="24" autocomplete="nickname"></label>
+  <label>Código da sala<input id="code" maxlength="20" placeholder="ex.: noite-de-filme"></label>
+  <div class="row">
+    <button id="enter">Entrar na sala</button>
+    <button id="create" class="sec">Criar sala nova</button>
+  </div>
+</main>
+
+<div id="room" class="hide">
+  <section>
+    <div class="top">
+      <b id="roomName"></b><span id="count"></span><span class="sp"></span>
+      <button id="invite" class="sec">Copiar convite</button>
+    </div>
+    <div class="stage">
+      <video id="v" controls playsinline class="hide"></video>
+      <video id="s" autoplay playsinline controls class="hide"></video>
+      <div id="ytbox" class="hide"><div id="ytdiv"></div></div>
+      <div id="empty" class="empty">Nenhum vídeo ainda. Cole um link, escolha um arquivo ou compartilhe a tela.</div>
+    </div>
+    <div class="tools">
+      <button id="bLink">Colar link (YouTube ou .mp4)</button>
+      <button id="bFile" class="sec">Escolher arquivo do PC</button>
+      <button id="bCast" class="sec">Transmitir arquivo para todos</button>
+      <button id="bShare" class="sec">Compartilhar tela</button>
+      <button id="bCount" class="sec">Contagem para dar play</button>
+    </div>
+    <div id="note" class="note hide"></div>
+    <input id="file" type="file" accept="video/*" class="hide">
+    <input id="castfile" type="file" accept="video/*" class="hide">
+  </section>
+  <aside>
+    <div id="who"></div>
+    <div id="log" aria-live="polite"></div>
+    <form id="chat"><input id="msg" placeholder="Escreva uma mensagem" autocomplete="off"><button>Enviar</button></form>
+  </aside>
+</div>
+
+<div id="toast" class="hide" role="status"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const sock = io();
+const v = $('v'), scr = $('s');
+let users = {}, peers = {}, stream = null, applying = false, wantFile = false, pendingCtl = null, room = '';
+
+function toast(t) {
+  const e = $('toast'); e.textContent = t; e.classList.remove('hide');
+  clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.add('hide'), 3500);
+}
+function note(html) { const n = $('note'); if (!html) return n.classList.add('hide'); n.innerHTML = html; n.classList.remove('hide'); }
+function log(html) { const l = $('log'); l.insertAdjacentHTML('beforeend', '<p>' + html + '</p>'); l.scrollTop = l.scrollHeight; }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- Entrada ---------- */
+const qs = new URLSearchParams(location.search);
+$('code').value = qs.get('sala') || '';
+$('name').value = localStorage.getItem('cs-name') || '';
+const slug = () => Math.random().toString(36).slice(2, 7);
+$('create').onclick = () => { $('code').value = slug(); join(); };
+$('enter').onclick = join;
+function join() {
+  const name = $('name').value.trim(), code = $('code').value.trim().toLowerCase();
+  if (!name) { $('name').focus(); return toast('Digite seu nome'); }
+  if (!code) { $('code').focus(); return toast('Digite o código da sala'); }
+  try { localStorage.setItem('cs-name', name); } catch (e) {}
+  room = code;
+  history.replaceState(null, '', '?sala=' + encodeURIComponent(code));
+  sock.emit('join', { room: code, name });
+}
+
+sock.on('joined', ({ id, state, users: list }) => {
+  users = {}; list.forEach(u => users[u.id] = u.name);
+  $('lobby').classList.add('hide'); $('room').classList.remove('hide');
+  $('roomName').textContent = 'Sala ' + room;
+  renderUsers();
+  if (state && state.src) { pendingCtl = state; applySource(state.src); }
+});
+$('invite').onclick = () => navigator.clipboard.writeText(location.origin + '/?sala=' + encodeURIComponent(room))
+  .then(() => toast('Convite copiado. Mande para os amigos.'), () => toast('Copie o endereço da barra do navegador.'));
+
+function renderUsers() {
+  const names = Object.values(users);
+  $('count').textContent = names.length + (names.length === 1 ? ' pessoa' : ' pessoas');
+  $('who').textContent = names.join(', ');
+}
+sock.on('user-joined', u => {
+  users[u.id] = u.name; renderUsers(); log('<i>' + esc(u.name) + ' entrou</i>');
+  if (stream) call(u.id);
+});
+sock.on('user-left', id => {
+  log('<i>' + esc(users[id] || 'Alguém') + ' saiu</i>'); delete users[id]; renderUsers();
+  if (peers[id]) { peers[id].close(); delete peers[id]; }
+});
+
+/* ---------- Chat ---------- */
+$('chat').onsubmit = e => { e.preventDefault(); const t = $('msg').value.trim(); if (t) sock.emit('chat', t); $('msg').value = ''; };
+sock.on('chat', m => log('<b>' + esc(m.name) + ':</b> ' + esc(m.text)));
+
+/* ---------- Player sincronizado ---------- */
+let ytp = null, mode = 'v', ytTimer = null, lastT = 0;
+function showPlayer() {
+  mode = 'v'; if (ytp && ytp.pauseVideo) ytp.pauseVideo();
+  $('ytbox').classList.add('hide'); v.classList.remove('hide'); scr.classList.add('hide'); $('empty').classList.add('hide');
+}
+function loadYtApi(cb) {
+  if (window.YT && YT.Player) return cb();
+  if (!loadYtApi.q) {
+    loadYtApi.q = [];
+    const t = document.createElement('script'); t.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(t);
+    window.onYouTubeIframeAPIReady = () => loadYtApi.q.forEach(f => f());
+  }
+  loadYtApi.q.push(cb);
+}
+const ytId = u => { const m = u.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/); return m && m[1]; };
+function showYt(id) {
+  mode = 'yt'; v.pause(); v.classList.add('hide'); scr.classList.add('hide'); $('empty').classList.add('hide');
+  $('ytbox').classList.remove('hide');
+  loadYtApi(() => {
+    if (ytp && ytp.cueVideoById) { ytp.cueVideoById(id); return; }
+    ytp = new YT.Player('ytdiv', {
+      videoId: id, playerVars: { playsinline: 1, rel: 0 },
+      events: {
+        onReady: () => { if (pendingCtl) { applyCtl(pendingCtl); pendingCtl = null; } },
+        onStateChange: e => { if (e.data === 1) send('play'); else if (e.data === 2) send('pause'); },
+      },
+    });
+    clearInterval(ytTimer);
+    ytTimer = setInterval(() => {
+      if (!ytp || !ytp.getCurrentTime) return;
+      const t = ytp.getCurrentTime();
+      if (Math.abs(t - lastT) > 2.5 && !applying) send('seek');
+      lastT = t;
+    }, 1000);
+  });
+}
+
+function applySource(src) {
+  if (src.kind === 'yt') {
+    note(''); showYt(src.id);
+  } else if (src.kind === 'url') {
+    note(''); v.src = src.url; showPlayer();
+  } else {
+    wantFile = true;
+    note('Seu amigo escolheu o arquivo <b>' + esc(src.name) + '</b>. Escolha o mesmo arquivo no seu PC para assistirem juntos. <button id="pick">Escolher arquivo</button>');
+    $('pick').onclick = () => $('file').click();
+  }
+}
+sock.on('source', applySource);
+
+$('bLink').onclick = () => {
+  const url = (prompt('Cole o link do YouTube ou o link direto de um vídeo (.mp4, .webm):') || '').trim();
+  if (!url) return;
+  wantFile = false; note('');
+  const id = ytId(url);
+  if (id) { showYt(id); sock.emit('source', { kind: 'yt', id }); return; }
+  v.src = url; showPlayer();
+  sock.emit('source', { kind: 'url', url });
+};
+$('bFile').onclick = () => { wantFile = false; $('file').click(); };
+$('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  v.src = URL.createObjectURL(f); showPlayer(); note('');
+  if (!wantFile) sock.emit('source', { kind: 'file', name: f.name });
+  wantFile = false; e.target.value = '';
+};
+
+function cur() {
+  if (mode === 'yt' && ytp && ytp.getCurrentTime) return { t: ytp.getCurrentTime(), p: ytp.getPlayerState() === 1 };
+  return { t: v.currentTime, p: !v.paused };
+}
+function send(type) {
+  if (applying || fileCast || (mode === 'v' && !v.src)) return;
+  const c = cur(); sock.emit('ctl', { playing: c.p, time: c.t, type });
+}
+v.onplay = () => send('play');
+v.onpause = () => send('pause');
+v.onseeked = () => send('seek');
+
+function applyCtl(c) {
+  applying = true;
+  if (mode === 'yt' && ytp && ytp.seekTo) {
+    if (Math.abs(ytp.getCurrentTime() - c.time) > 1.2) ytp.seekTo(c.time, true);
+    if (c.playing) ytp.playVideo(); else ytp.pauseVideo();
+    lastT = c.time;
+  } else {
+    if (Math.abs(v.currentTime - c.time) > 0.7) v.currentTime = c.time;
+    if (c.playing) v.play().catch(() => toast('Clique no vídeo para liberar o play'));
+    else v.pause();
+  }
+  setTimeout(() => applying = false, 800);
+}
+sock.on('ctl', c => {
+  const ready = mode === 'yt' ? !!(ytp && ytp.seekTo) : v.readyState > 0;
+  if (ready) applyCtl(c); else pendingCtl = c;
+});
+v.onloadedmetadata = () => { if (pendingCtl) { applyCtl(pendingCtl); pendingCtl = null; } };
+v.onerror = () => toast('Não foi possível abrir o vídeo. Confira se o link é direto para o arquivo.');
+
+/* ---------- Transmitir arquivo (so o anfitriao precisa ter o filme) ---------- */
+let fileCast = false;
+$('bCast').onclick = () => {
+  if (stream && fileCast) return stopShare();
+  if (stream) return toast('Pare a tela compartilhada antes.');
+  $('castfile').click();
+};
+$('castfile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  fileCast = true; v.src = URL.createObjectURL(f); showPlayer(); e.target.value = '';
+  note('Dê play no vídeo para começar a transmitir. Seus amigos recebem imagem e som. Deixe esta aba aberta.');
+  v.addEventListener('playing', () => {
+    if (!fileCast || stream) return;
+    stream = v.captureStream ? v.captureStream() : v.mozCaptureStream();
+    $('bCast').textContent = 'Parar transmissão';
+    note('Transmitindo para ' + (Object.keys(users).length - 1) + ' pessoa(s). Pausar, avançar e voltar aqui vale para todos.');
+    Object.keys(users).forEach(id => id !== sock.id && call(id));
+  }, { once: true });
+};
+
+/* ---------- Contagem para quem usa Netflix, Prime etc. na própria conta ---------- */
+$('bCount').onclick = () => sock.emit('count');
+sock.on('count', () => {
+  let n = 5;
+  const tick = () => {
+    if (n > 0) { note('<b style="font-size:2rem">' + n + '</b> Deixe o filme pronto, com o play parado.'); n--; setTimeout(tick, 1000); }
+    else { note('<b style="font-size:2rem">Dê play agora!</b>'); setTimeout(() => note(''), 3000); }
+  };
+  tick();
+});
+
+/* ---------- Tela compartilhada (WebRTC) ---------- */
+function mk(id) {
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  pc.onicecandidate = e => e.candidate && sock.emit('signal', { to: id, data: { ice: e.candidate } });
+  pc.ontrack = e => {
+    scr.srcObject = e.streams[0];
+    scr.classList.remove('hide'); v.classList.add('hide'); $('ytbox').classList.add('hide'); $('empty').classList.add('hide');
+    v.pause(); if (ytp && ytp.pauseVideo) ytp.pauseVideo();
+  };
+  return pc;
+}
+async function call(id) {
+  if (peers[id]) peers[id].close();
+  const pc = peers[id] = mk(id);
+  stream.getTracks().forEach(t => pc.addTrack(t, stream));
+  const n = Object.keys(users).length;
+  const kbps = n <= 6 ? 3000 : n <= 11 ? 1500 : 800; // protege o upload de quem transmite
+  pc.getSenders().forEach(s => {
+    if (s.track && s.track.kind === 'video') {
+      const p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = kbps * 1000;
+      p.encodings[0].scaleResolutionDownBy = n > 11 ? 2 : n > 6 ? 1.5 : 1; s.setParameters(p).catch(() => {});
+    }
+  });
+  const o = await pc.createOffer(); await pc.setLocalDescription(o);
+  sock.emit('signal', { to: id, data: { sdp: pc.localDescription } });
+}
+sock.on('signal', async ({ from, data }) => {
+  if (data.sdp) {
+    if (data.sdp.type === 'offer') { if (peers[from]) peers[from].close(); peers[from] = mk(from); }
+    const pc = peers[from]; if (!pc) return;
+    await pc.setRemoteDescription(data.sdp);
+    if (data.sdp.type === 'offer') {
+      const a = await pc.createAnswer(); await pc.setLocalDescription(a);
+      sock.emit('signal', { to: from, data: { sdp: pc.localDescription } });
+    }
+  } else if (data.ice && peers[from]) {
+    try { await peers[from].addIceCandidate(data.ice); } catch (e) {}
+  }
+});
+sock.on('share-stop', () => {
+  scr.srcObject = null; scr.classList.add('hide');
+  if (mode === 'yt') $('ytbox').classList.remove('hide');
+  else if (v.src) v.classList.remove('hide'); else $('empty').classList.remove('hide');
+});
+
+$('bShare').onclick = async () => {
+  if (stream) return stopShare();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return toast('Seu navegador não permite compartilhar a tela aqui.');
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }); }
+  catch (e) { return; }
+  stream.getVideoTracks()[0].onended = stopShare;
+  $('bShare').textContent = 'Parar de compartilhar';
+  note('Você está transmitindo para ' + (Object.keys(users).length - 1) + ' pessoa(s). Marque "Compartilhar áudio" na janela do navegador para o som chegar também. Netflix e similares costumam mostrar tela preta.');
+  Object.keys(users).forEach(id => id !== sock.id && call(id));
+};
+function stopShare() {
+  if (!stream) return;
+  stream.getTracks().forEach(t => t.stop()); stream = null;
+  Object.values(peers).forEach(p => p.close()); peers = {};
+  fileCast = false; $('bCast').textContent = 'Transmitir arquivo para todos';
+  sock.emit('share-stop'); $('bShare').textContent = 'Compartilhar tela'; note('');
+}
+</script>
+</body>
+</html>
