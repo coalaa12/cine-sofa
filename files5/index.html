@@ -1,0 +1,613 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cine Sofá</title>
+<link rel="manifest" href="/manifest.json">
+<meta property="og:title" content="Cine Sofá - assista com os amigos">
+<meta property="og:description" content="Entre na sala e veja o filme junto com a galera.">
+<meta property="og:image" content="__ORIGIN__/icon-512.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#d62839">
+<link rel="icon" href="/icon-192.png">
+<style>
+:root{--bg:#0d0809;--panel:#1a1012;--line:#3b1c20;--ink:#f7efef;--mute:#b79d9f;--lamp:#d62839;--hi:#ff6b78;--red:#9b1c2a;--nl:68%}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+h1{font:700 clamp(2.4rem,7vw,4.5rem)/1 Georgia,"Times New Roman",serif;margin:0 0 .4em;letter-spacing:-.02em;padding-left:.35em;border-left:.12em solid var(--lamp)}
+button,input{font:inherit;color:inherit}
+button{background:var(--lamp);color:#fff;border:0;border-radius:8px;padding:.6em 1em;font-weight:600;cursor:pointer}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
+button.sec:hover{border-color:var(--lamp)}
+button:hover{filter:brightness(1.1)}
+:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
+input{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.6em .8em;width:100%}
+.hide{display:none!important}
+#lobby{min-height:100vh;display:grid;place-content:center;padding:24px;max-width:520px;margin:auto}
+#lobby p{color:var(--mute);margin:0 0 1.5em}
+#lobby label{display:block;margin:0 0 1em;color:var(--mute);font-size:.9rem}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>*{flex:1}
+#room{display:grid;grid-template-columns:1fr 330px;gap:16px;padding:16px;min-height:100vh}
+.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.top b{font:700 1.3rem Georgia,serif}
+.top span{color:var(--mute)}
+.top .sp{flex:1}
+.stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;border:2px solid var(--lamp)}
+.stage video{width:100%;height:100%;background:#000}
+#ytbox{width:100%;height:100%}#ytbox iframe{width:100%;height:100%;border:0}
+.empty{color:var(--mute);padding:24px;text-align:center}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.note{margin-top:12px;padding:12px;border-radius:8px;background:var(--panel);border-left:4px solid var(--lamp)}
+aside{background:var(--panel);border-radius:12px;display:flex;flex-direction:column;height:calc(100vh - 32px);border:1px solid var(--line)}
+#who{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--mute);font-size:.9rem}
+#log{flex:1;overflow:auto;padding:12px 14px}
+#log p{margin:0 0 .6em;overflow-wrap:anywhere}
+#log b{color:var(--hi)}
+#log i{color:var(--mute)}
+#chat{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+#toast{color:#fff;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--red);padding:.6em 1em;border-radius:8px}
+select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.5em}
+#log mark{background:var(--lamp);color:#fff;border-radius:4px;padding:0 .2em}
+#brk{font-size:1.2rem;text-align:center}#brk b{font-size:2rem}
+#bingo .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
+#bingo .c{background:var(--bg);border:1px solid var(--line);color:var(--ink);font-size:.8rem;padding:.5em;min-height:3.4em;font-weight:400}
+#bingo .c.on{background:var(--lamp);color:#fff}
+#quick div,#recap div{margin-top:6px}
+#tabs{display:flex;gap:4px;margin-top:12px;border-bottom:1px solid var(--line);overflow-x:auto}
+#tabs button{background:transparent;color:var(--mute);border-radius:8px 8px 0 0;padding:.5em .9em;white-space:nowrap}
+#tabs button.on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--lamp)}
+.tools{margin-top:10px}
+@media(max-width:860px){.tools button,.tools select{flex:1 1 45%}}
+button:disabled{opacity:.4;cursor:not-allowed}
+#reacts{display:flex;gap:8px;margin-top:12px}
+#reacts button.sf{font-size:.9rem}
+#ov{position:absolute;left:10px;bottom:10px;max-width:65%;pointer-events:none;display:flex;flex-direction:column;gap:4px;text-align:left}
+#ov p{margin:0;background:#000c;color:#fff;padding:.2em .6em;border-radius:6px;font-size:.95rem}
+#poll div{margin-top:6px}
+#reacts button{background:var(--panel);border:1px solid var(--line);font-size:1.3rem;padding:.3em .6em}
+.fl{position:absolute;bottom:8%;font-size:2.2rem;animation:up 2.5s ease-out forwards;pointer-events:none}
+@keyframes up{to{transform:translateY(-70%);opacity:0}}
+@media(prefers-reduced-motion:reduce){.fl{animation-duration:.01s}}
+.x{padding:0 .4em;background:transparent;border:1px solid var(--line);color:var(--ink);font-size:.8rem;border-radius:6px}
+.cine aside,.cine .top{display:none}.cine #room{grid-template-columns:1fr}.cine .stage{max-height:82vh;margin:auto}
+html[data-theme=azul]{--bg:#0a1230;--panel:#111c44;--line:#25346b;--ink:#eaf0ff;--mute:#93a4d6;--lamp:#2f7bff;--hi:#6fa8ff}
+html[data-theme=claro]{--bg:#f6f3f0;--panel:#fff;--line:#d9d2cc;--ink:#1d1517;--mute:#6f6165;--lamp:#c4202f;--hi:#b01c2a;--nl:36%}
+@media(max-width:860px){#room{grid-template-columns:1fr}aside{height:420px}}
+</style>
+</head>
+<body>
+
+<main id="lobby">
+  <h1>Cine Sofá</h1>
+  <p>Assista com os amigos, cada um no seu sofá. Entre numa sala ou crie uma nova e mande o link.</p>
+  <label>Seu nome<input id="name" maxlength="24" autocomplete="nickname"></label>
+  <label>Código da sala<input id="code" maxlength="20" placeholder="ex.: noite-de-filme"></label>
+  <label>Senha da sala (opcional)<input id="pass" maxlength="30" autocomplete="off"></label>
+  <div class="row">
+    <button id="enter">Entrar na sala</button>
+    <button id="create" class="sec">Criar sala nova</button>
+  </div>
+</main>
+
+<div id="room" class="hide">
+  <section>
+    <div class="top">
+      <b id="roomName"></b><span id="count"></span><span class="sp"></span>
+      <button id="invite" class="sec">Copiar convite</button>
+    </div>
+    <div class="stage">
+      <video id="v" controls playsinline class="hide"></video>
+      <video id="s" autoplay playsinline controls class="hide"></video>
+      <div id="ytbox" class="hide"><div id="ytdiv"></div></div>
+      <div id="empty" class="empty">Nenhum vídeo ainda. Cole um link, escolha um arquivo ou compartilhe a tela.</div>
+      <div id="ov"></div>
+    </div>
+    <div id="reacts"><button>😂</button><button>😱</button><button>❤️</button><button>👏</button><button>🔥</button><button class="sf" data-k="aplauso">🎉 Aplausos</button><button class="sf" data-k="suspense">😨 Suspense</button><button class="sf" data-k="sino">🔔 Sino</button></div>
+    <div id="tabs"><button data-g="assistir" class="on">Assistir</button><button data-g="sala">Sala</button><button data-g="votos">Votações</button><button data-g="tela">Tela</button></div>
+    <div class="tools" data-g="assistir">
+      <button id="bLink">Colar link (YouTube ou .mp4)</button>
+      <button id="bFile" class="sec">Escolher arquivo do PC</button>
+      <button id="bCast" class="sec">Transmitir arquivo para todos</button>
+      <button id="bShare" class="sec">Compartilhar tela</button>
+      <button id="bQAdd" class="sec">Adicionar à fila</button>
+      <button id="bQNext" class="sec">Próximo da fila</button>
+      <button id="bSync" class="sec">Sincronizar todos comigo</button>
+      <button id="bSrt" class="sec">Legendas (.srt)</button>
+      <select id="qual" title="Qualidade da transmissão"><option value="auto">Qualidade: automática</option><option value="3000">Alta</option><option value="1500">Média</option><option value="800">Leve</option></select>
+    </div>
+    <div class="tools hide" data-g="sala">
+      <button id="bLock" class="sec hide">Só eu controlo</button>
+      <button id="bBreak" class="sec">Intervalo</button>
+      <button id="bSched" class="sec">Agendar sessão</button>
+      <button id="bCount" class="sec">Contagem para dar play</button>
+      <button id="bRecap" class="sec hide">Resumo da noite</button>
+    </div>
+    <div class="tools hide" data-g="votos">
+      <button id="bSug" class="sec">Sugerir filme</button>
+      <button id="bQuick" class="sec">Enquete rápida</button>
+      <button id="bBet" class="sec hide">Palpite</button>
+      <button id="bBingo" class="sec">Bingo de clichês</button>
+    </div>
+    <div class="tools hide" data-g="tela">
+      <button id="bCine" class="sec">Modo cinema</button>
+      <button id="bFull" class="sec">Tela cheia</button>
+      <button id="bOv" class="sec">Chat no vídeo</button>
+      <button id="bTheme" class="sec">Mudar tema</button>
+    </div>
+    <div id="note" class="note hide"></div>
+    <div id="poll" class="note hide"></div>
+    <div id="queue" class="note hide"></div>
+    <div id="brk" class="note hide"></div>
+    <div id="quick" class="note hide"></div>
+    <div id="bingo" class="note hide"></div>
+    <div id="recap" class="note hide"></div>
+    <input id="file" type="file" accept="video/*" class="hide">
+    <input id="castfile" type="file" accept="video/*" class="hide">
+    <input id="srt" type="file" accept=".srt" class="hide">
+  </section>
+  <aside>
+    <div id="who"></div>
+    <div id="log" aria-live="polite"></div>
+    <form id="chat"><input id="msg" placeholder="Escreva uma mensagem" autocomplete="off"><button>Enviar</button></form>
+  </aside>
+</div>
+
+<div id="toast" class="hide" role="status"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const sock = io();
+const v = $('v'), scr = $('s');
+const lag = new Set(), muted = new Set();
+let hostId = null, locked = false, users = {}, peers = {}, stream = null, applying = false, wantFile = false, pendingCtl = null, room = '';
+
+function toast(t) {
+  const e = $('toast'); e.textContent = t; e.classList.remove('hide');
+  clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.add('hide'), 3500);
+}
+function note(html) { const n = $('note'); if (!html) return n.classList.add('hide'); n.innerHTML = html; n.classList.remove('hide'); }
+function log(html) { const l = $('log'); l.insertAdjacentHTML('beforeend', '<p>' + html + '</p>'); l.scrollTop = l.scrollHeight; }
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- Entrada ---------- */
+const qs = new URLSearchParams(location.search);
+$('code').value = qs.get('sala') || '';
+$('name').value = localStorage.getItem('cs-name') || '';
+const slug = () => Math.random().toString(36).slice(2, 7);
+$('create').onclick = () => { $('code').value = slug(); join(); };
+$('enter').onclick = join;
+function join() {
+  const name = $('name').value.trim(), code = $('code').value.trim().toLowerCase();
+  if (!name) { $('name').focus(); return toast('Digite seu nome'); }
+  if (!code) { $('code').focus(); return toast('Digite o código da sala'); }
+  try { localStorage.setItem('cs-name', name); } catch (e) {}
+  room = code;
+  history.replaceState(null, '', '?sala=' + encodeURIComponent(code));
+  sock.emit('join', { room: code, name, pass: $('pass').value });
+}
+
+sock.on('joined', ({ id, state, users: list, host, locked: lk, chat, queue, poll, quick: qk }) => {
+  hostId = host; locked = lk; (chat || []).forEach(showMsg); renderQueue(queue || []); renderPoll(poll || []); renderQuick(qk);
+  users = {}; list.forEach(u => users[u.id] = u.name);
+  $('lobby').classList.add('hide'); $('room').classList.remove('hide');
+  $('roomName').textContent = 'Sala ' + room;
+  renderUsers(); applyLock();
+  if (state && state.src) { pendingCtl = state; applySource(state.src); }
+});
+$('invite').onclick = () => navigator.clipboard.writeText(location.origin + '/?sala=' + encodeURIComponent(room))
+  .then(() => toast('Convite copiado. Mande para os amigos.'), () => toast('Copie o endereço da barra do navegador.'));
+
+function renderUsers() {
+  const me = sock.id === hostId, n = Object.keys(users).length;
+  $('count').textContent = n + (n === 1 ? ' pessoa' : ' pessoas');
+  $('who').innerHTML = Object.entries(users).map(([id, nm]) => (id === hostId ? '👑 ' : '') + (lag.has(id) ? '⚠️ ' : '') + esc(nm) +
+    (id !== sock.id ? ' <button class="x" data-m="' + esc(nm) + '" title="Silenciar no chat">' + (muted.has(nm) ? '🔈' : '🔇') + '</button>' : '') +
+    (me && id !== sock.id ? ' <button class="x" data-h="' + id + '" title="Passar anfitrião">👑</button> <button class="x" data-id="' + id + '" title="Remover da sala">✕</button>' : '')).join(' · ');
+}
+$('who').onclick = e => {
+  const b = e.target.closest('.x'); if (!b) return;
+  if (b.dataset.m) { const nm = b.dataset.m; if (muted.has(nm)) muted.delete(nm); else muted.add(nm); renderUsers(); }
+  else if (b.dataset.h) { if (confirm('Passar o anfitrião para esta pessoa?')) sock.emit('make-host', b.dataset.h); }
+  else if (b.dataset.id && confirm('Remover esta pessoa da sala?')) sock.emit('kick', b.dataset.id);
+};
+sock.on('denied', () => { toast('Senha incorreta para esta sala.'); $('pass').focus(); });
+sock.on('kicked', () => { alert('Você foi removido da sala.'); location.href = location.pathname; });
+sock.on('user-joined', u => {
+  users[u.id] = u.name; renderUsers(); log('<i>' + esc(u.name) + ' entrou</i>');
+  if (stream) call(u.id);
+});
+sock.on('user-left', id => {
+  log('<i>' + esc(users[id] || 'Alguém') + ' saiu</i>'); delete users[id]; renderUsers();
+  if (peers[id]) { peers[id].close(); delete peers[id]; }
+});
+
+/* ---------- Chat ---------- */
+$('chat').onsubmit = e => { e.preventDefault(); const t = $('msg').value.trim(); if (t) sock.emit('chat', t); $('msg').value = ''; };
+const hue = n => { let h = 0; for (const c of n) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+let ovOn = false;
+const sfxCtx = () => sfx.c || (sfx.c = new (window.AudioContext || window.webkitAudioContext)());
+function ding() {
+  const a = sfxCtx(), t = a.currentTime, o = a.createOscillator(), g = a.createGain();
+  o.frequency.value = 1200; g.gain.setValueAtTime(.2, t); g.gain.exponentialRampToValueAtTime(.001, t + .5);
+  o.connect(g); g.connect(a.destination); o.start(t); o.stop(t + .5);
+}
+function showMsg(m) {
+  if (muted.has(m.name)) return;
+  const my = $('name').value.trim(), hit = my && m.text.toLowerCase().includes('@' + my.toLowerCase());
+  const h = '<b style="color:hsl(' + hue(m.name) + ' 75% var(--nl))">' + esc(m.name) + ':</b> ' + (hit ? '<mark>' + esc(m.text) + '</mark>' : esc(m.text));
+  log(h);
+  if (hit && m.name !== my) { try { ding(); } catch (e) {} }
+  if (ovOn) { const p = document.createElement('p'); p.innerHTML = h; $('ov').appendChild(p); setTimeout(() => p.remove(), 7000); }
+}
+sock.on('chat', showMsg);
+
+/* ---------- Player sincronizado ---------- */
+let ytp = null, mode = 'v', ytTimer = null, lastT = 0;
+function showPlayer() {
+  mode = 'v'; if (ytp && ytp.pauseVideo) ytp.pauseVideo();
+  $('ytbox').classList.add('hide'); v.classList.remove('hide'); scr.classList.add('hide'); $('empty').classList.add('hide');
+}
+function loadYtApi(cb) {
+  if (window.YT && YT.Player) return cb();
+  if (!loadYtApi.q) {
+    loadYtApi.q = [];
+    const t = document.createElement('script'); t.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(t);
+    window.onYouTubeIframeAPIReady = () => loadYtApi.q.forEach(f => f());
+  }
+  loadYtApi.q.push(cb);
+}
+const ytId = u => { const m = u.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/); return m && m[1]; };
+function showYt(id) {
+  mode = 'yt'; v.pause(); v.classList.add('hide'); scr.classList.add('hide'); $('empty').classList.add('hide');
+  $('ytbox').classList.remove('hide');
+  loadYtApi(() => {
+    if (ytp && ytp.cueVideoById) { ytp.cueVideoById(id); return; }
+    ytp = new YT.Player('ytdiv', {
+      videoId: id, playerVars: { playsinline: 1, rel: 0 },
+      events: {
+        onReady: () => { if (pendingCtl) { applyCtl(pendingCtl); pendingCtl = null; } },
+        onStateChange: e => { if (e.data === 1) send('play'); else if (e.data === 2) send('pause'); else if (e.data === 0 && sock.id === hostId) sock.emit('queue-next'); },
+      },
+    });
+    clearInterval(ytTimer);
+    ytTimer = setInterval(() => {
+      if (!ytp || !ytp.getCurrentTime) return;
+      const t = ytp.getCurrentTime();
+      if (Math.abs(t - lastT) > 2.5 && !applying) send('seek');
+      lastT = t;
+    }, 1000);
+  });
+}
+
+function applySource(src) {
+  if (src.kind === 'yt') {
+    note(''); showYt(src.id);
+  } else if (src.kind === 'url') {
+    note(''); v.src = src.url; showPlayer();
+  } else {
+    wantFile = true;
+    note('Seu amigo escolheu o arquivo <b>' + esc(src.name) + '</b>. Escolha o mesmo arquivo no seu PC para assistirem juntos. <button id="pick">Escolher arquivo</button>');
+    $('pick').onclick = () => $('file').click();
+  }
+}
+sock.on('source', applySource);
+
+$('bLink').onclick = () => {
+  const url = (prompt('Cole o link do YouTube ou o link direto de um vídeo (.mp4, .webm):') || '').trim();
+  if (!url) return;
+  wantFile = false; note('');
+  const id = ytId(url);
+  if (id) { showYt(id); sock.emit('source', { kind: 'yt', id }); return; }
+  v.src = url; showPlayer();
+  sock.emit('source', { kind: 'url', url });
+};
+$('bFile').onclick = () => { wantFile = false; $('file').click(); };
+$('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  v.src = URL.createObjectURL(f); showPlayer(); note('');
+  if (!wantFile) sock.emit('source', { kind: 'file', name: f.name });
+  wantFile = false; e.target.value = '';
+};
+
+function cur() {
+  if (mode === 'yt' && ytp && ytp.getCurrentTime) return { t: ytp.getCurrentTime(), p: ytp.getPlayerState() === 1 };
+  return { t: v.currentTime, p: !v.paused };
+}
+function send(type) {
+  if (applying || fileCast || (mode === 'v' && !v.src)) return;
+  const c = cur(); sock.emit('ctl', { playing: c.p, time: c.t, type });
+}
+v.onplay = () => send('play');
+v.onpause = () => send('pause');
+v.onseeked = () => send('seek');
+
+function applyCtl(c) {
+  applying = true;
+  if (mode === 'yt' && ytp && ytp.seekTo) {
+    if (Math.abs(ytp.getCurrentTime() - c.time) > 1.2) ytp.seekTo(c.time, true);
+    if (c.playing) ytp.playVideo(); else ytp.pauseVideo();
+    lastT = c.time;
+  } else {
+    if (Math.abs(v.currentTime - c.time) > 0.7) v.currentTime = c.time;
+    if (c.playing) v.play().catch(() => toast('Clique no vídeo para liberar o play'));
+    else v.pause();
+  }
+  setTimeout(() => applying = false, 800);
+}
+sock.on('ctl', c => {
+  const ready = mode === 'yt' ? !!(ytp && ytp.seekTo) : v.readyState > 0;
+  if (ready) applyCtl(c); else pendingCtl = c;
+});
+v.onloadedmetadata = () => { if (pendingCtl) { applyCtl(pendingCtl); pendingCtl = null; } };
+v.onerror = () => toast('Não foi possível abrir o vídeo. Confira se o link é direto para o arquivo.');
+
+/* ---------- Anfitriao, reacoes, cinema, tema, legendas ---------- */
+function applyLock() {
+  const me = sock.id === hostId, lock = locked && !me;
+  v.controls = !lock; $('ytbox').style.pointerEvents = lock ? 'none' : '';
+  ['bLink', 'bFile', 'bCast', 'bShare', 'bQNext', 'bSync', 'bBreak', 'bSched'].forEach(i => $(i).disabled = lock);
+  $('bLock').classList.toggle('hide', !me); $('bBet').classList.toggle('hide', !me); $('bRecap').classList.toggle('hide', !me);
+  $('bLock').textContent = locked ? 'Liberar controles' : 'Só eu controlo';
+}
+sock.on('host', h => { hostId = h.host; locked = h.locked; renderUsers(); applyLock(); });
+$('bLock').onclick = () => sock.emit('lock', !locked);
+
+document.querySelectorAll('#reacts button:not(.sf)').forEach(b => b.onclick = () => sock.emit('react', b.textContent));
+sock.on('react', e => {
+  const f = document.createElement('span'); f.className = 'fl'; f.textContent = e;
+  f.style.left = (8 + Math.random() * 80) + '%';
+  document.querySelector('.stage').appendChild(f); setTimeout(() => f.remove(), 2600);
+});
+
+$('bCine').onclick = () => document.body.classList.toggle('cine');
+const themes = ['', 'azul', 'claro'];
+function setTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem('cs-theme', t); } catch (e) {} }
+setTheme((() => { try { return localStorage.getItem('cs-theme') || ''; } catch (e) { return ''; } })());
+$('bTheme').onclick = () => setTheme(themes[(themes.indexOf(document.documentElement.dataset.theme || '') + 1) % 3]);
+
+$('bSrt').onclick = () => $('srt').click();
+$('srt').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const t = await f.text();
+  const vtt = 'WEBVTT\n\n' + t.replace(/\r/g, '').replace(/(\d+:\d\d:\d\d),(\d{3})/g, '$1.$2');
+  v.querySelectorAll('track').forEach(x => x.remove());
+  const tr = document.createElement('track'); tr.kind = 'subtitles'; tr.label = 'Legenda'; tr.default = true;
+  tr.src = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' })); v.appendChild(tr);
+  setTimeout(() => { if (v.textTracks[0]) v.textTracks[0].mode = 'showing'; }, 200);
+  toast('Legenda carregada (só para você).'); e.target.value = '';
+};
+
+/* ---------- Fila, votacao, sons, chat no video, app ---------- */
+const srcName = x => x.kind === 'yt' ? 'YouTube: ' + x.id : x.kind === 'file' ? x.name : (x.url || '').split('/').pop().slice(0, 40);
+function renderQueue(q) {
+  const el = $('queue'); if (!q.length) return el.classList.add('hide');
+  el.classList.remove('hide'); el.innerHTML = '<b>Fila</b><br>' + q.map((x, i) => (i + 1) + '. ' + esc(srcName(x))).join('<br>');
+}
+sock.on('queue', renderQueue);
+function renderPoll(p) {
+  const el = $('poll'); if (!p.length) return el.classList.add('hide');
+  el.classList.remove('hide');
+  el.innerHTML = '<b>Votação do filme</b>' + p.map(o => '<div>' + esc(o.title) + ' <small>(' + esc(o.by) + ')</small> <button class="x" data-v="' + o.id + '">' + (o.voters.includes(sock.id) ? '✓ ' : '') + o.n + ' voto(s)</button></div>').join('') +
+    (sock.id === hostId ? '<div><button class="x" id="pclr">Limpar votação</button></div>' : '');
+}
+sock.on('poll', renderPoll);
+$('poll').onclick = e => { const b = e.target.closest('[data-v]'); if (b) sock.emit('vote', b.dataset.v); if (e.target.id === 'pclr') sock.emit('poll-clear'); };
+$('bSug').onclick = () => { const t = (prompt('Qual filme você sugere?') || '').trim(); if (t) sock.emit('suggest', t); };
+$('bQAdd').onclick = () => {
+  const u = (prompt('Cole o link do YouTube ou de um vídeo (.mp4):') || '').trim(); if (!u) return;
+  const id = ytId(u); sock.emit('queue-add', id ? { kind: 'yt', id } : { kind: 'url', url: u });
+};
+$('bQNext').onclick = () => sock.emit('queue-next');
+v.onended = () => { if (sock.id === hostId) sock.emit('queue-next'); };
+
+document.querySelectorAll('#reacts .sf').forEach(b => b.onclick = () => sock.emit('sfx', b.dataset.k));
+sock.on('sfx', k => {
+  const a = sfx.c || (sfx.c = new (window.AudioContext || window.webkitAudioContext)()), t = a.currentTime;
+  if (k === 'aplauso') {
+    const b = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.max(0, 1 - i / d.length) * (Math.random() < .02 ? 1 : .25);
+    const n = a.createBufferSource(), f = a.createBiquadFilter(); n.buffer = b; f.type = 'bandpass'; f.frequency.value = 2500;
+    n.connect(f); f.connect(a.destination); n.start(t);
+  } else {
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = k === 'sino' ? 'sine' : 'sawtooth';
+    if (k === 'sino') { o.frequency.value = 880; g.gain.setValueAtTime(.3, t); g.gain.exponentialRampToValueAtTime(.001, t + 2); o.stop(t + 2); }
+    else { o.frequency.setValueAtTime(70, t); o.frequency.linearRampToValueAtTime(40, t + 3); g.gain.setValueAtTime(.001, t); g.gain.linearRampToValueAtTime(.25, t + 1.2); g.gain.linearRampToValueAtTime(.001, t + 3); o.stop(t + 3); }
+    o.connect(g); g.connect(a.destination); o.start(t);
+  }
+});
+function sfx() {}
+
+$('bOv').onclick = () => { ovOn = !ovOn; $('bOv').textContent = ovOn ? 'Chat no vídeo: ligado' : 'Chat no vídeo'; if (!ovOn) $('ov').innerHTML = ''; };
+$('bFull').onclick = () => { const st = document.querySelector('.stage'); if (st.requestFullscreen) st.requestFullscreen(); };
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+/* ---------- Sincronia, intervalo, enquetes, bingo, resumo ---------- */
+$('bSync').onclick = () => {
+  if (mode === 'v' && !v.src) return;
+  const c = cur(); sock.emit('ctl', { playing: c.p, time: c.t, type: 'sync' }); toast('Sala sincronizada com você.');
+};
+v.addEventListener('waiting', () => sock.emit('lag', true));
+v.addEventListener('playing', () => sock.emit('lag', false));
+sock.on('lag', ({ id, on }) => { if (on) lag.add(id); else lag.delete(id); renderUsers(); });
+
+let brkT = null;
+function countdown(secs, label) {
+  clearInterval(brkT); const el = $('brk'); el.classList.remove('hide');
+  const done = label === 'Intervalo' ? 'Hora de voltar!' : 'Hora de começar!'; let n = secs;
+  const tick = () => {
+    if (n <= 0) { clearInterval(brkT); el.innerHTML = '<b>' + done + '</b>'; setTimeout(() => el.classList.add('hide'), 8000); return; }
+    el.innerHTML = esc(label) + ' <b>' + String(Math.floor(n / 60)).padStart(2, '0') + ':' + String(n % 60).padStart(2, '0') + '</b>'; n--;
+  };
+  tick(); brkT = setInterval(tick, 1000);
+}
+sock.on('break', ({ secs, label }) => {
+  if (label === 'Intervalo') {
+    applying = true; if (mode === 'yt' && ytp && ytp.pauseVideo) ytp.pauseVideo(); else v.pause();
+    setTimeout(() => applying = false, 800);
+  }
+  countdown(secs, label);
+});
+$('bBreak').onclick = () => { const m = +prompt('Quantos minutos de intervalo?', '10'); if (m > 0) sock.emit('break', { secs: Math.round(m * 60), label: 'Intervalo' }); };
+$('bSched').onclick = () => { const m = +prompt('A sessão começa em quantos minutos?', '10'); if (m > 0) sock.emit('break', { secs: Math.round(m * 60), label: 'Sessão começa em' }); };
+
+function renderQuick(q) {
+  const el = $('quick'); if (!q) return el.classList.add('hide');
+  el.classList.remove('hide');
+  const mine = q.votes[sock.id], me = sock.id === hostId, done = q.answer !== null && q.answer !== undefined;
+  let h = '<b>' + (q.scored ? 'Palpite: ' : 'Enquete: ') + esc(q.q) + '</b>';
+  q.opts.forEach((o, i) => h += '<div>' + esc(o) + ' <button class="x" data-q="' + i + '">' + (mine === i ? '✓ ' : '') + q.counts[i] + '</button>' +
+    (me && q.scored && !done ? ' <button class="x" data-r="' + i + '">É esta!</button>' : '') + (done && q.answer === i ? ' ✅' : '') + '</div>');
+  const sc = Object.entries(q.score || {}).sort((a, b) => b[1] - a[1]);
+  if (sc.length) h += '<div><small>Placar: ' + sc.map(([n, p]) => esc(n) + ' ' + p).join(' · ') + '</small></div>';
+  el.innerHTML = h;
+}
+sock.on('quick', renderQuick);
+$('quick').onclick = e => {
+  const b = e.target.closest('.x'); if (!b) return;
+  if (b.dataset.q !== undefined) sock.emit('quick-vote', +b.dataset.q);
+  if (b.dataset.r !== undefined) sock.emit('quick-reveal', +b.dataset.r);
+};
+function newQuick(scored) {
+  const q = (prompt(scored ? 'Pergunta do palpite (ex.: Quem morre primeiro?)' : 'Pergunta da enquete (ex.: Pausa para pipoca?)') || '').trim(); if (!q) return;
+  const o = (prompt('Opções separadas por vírgula', 'Sim, Não') || '').split(',').map(x => x.trim()).filter(Boolean);
+  if (o.length < 2) return toast('Coloque pelo menos 2 opções.');
+  sock.emit('quick-new', { q, opts: o, scored });
+}
+$('bQuick').onclick = () => newQuick(false);
+$('bBet').onclick = () => newQuick(true);
+
+const CLICHES = ['"Fica calmo!"', 'Explosão', 'Perseguição de carro', 'O carro não pega', 'Alguém some sem explicação', 'Plot twist', 'Luz piscando', 'Tiro que erra tudo', 'Beijo no final', 'Morte boba', 'Música dramática', '"Não vá lá!"', 'Vai ter sequência', 'Cena de hacker', 'Cachorro aparece', 'Cena na chuva', '"Temos que nos separar"', 'Narração em off', 'Flashback', 'Vilão explica o plano', 'Câmera lenta', 'Celular sem sinal', 'Todos falam inglês perfeito', 'Cena pós-créditos'];
+const LINES = [[0,1,2,3],[4,5,6,7],[8,9,10,11],[12,13,14,15],[0,4,8,12],[1,5,9,13],[2,6,10,14],[3,7,11,15],[0,5,10,15],[3,6,9,12]];
+function newBingo() {
+  const pick = CLICHES.slice().sort(() => Math.random() - .5).slice(0, 16), on = new Set(), el = $('bingo'); let won = false;
+  const draw = () => {
+    el.innerHTML = '<b>Bingo de clichês</b> <button class="x" id="bnew">Nova cartela</button><div class="grid">' +
+      pick.map((t, i) => '<button class="c' + (on.has(i) ? ' on' : '') + '" data-i="' + i + '">' + esc(t) + '</button>').join('') + '</div>';
+  };
+  el.onclick = e => {
+    if (e.target.id === 'bnew') return newBingo();
+    const b = e.target.closest('.c'); if (!b) return;
+    const i = +b.dataset.i; if (on.has(i)) on.delete(i); else on.add(i); draw();
+    if (!won && LINES.some(l => l.every(k => on.has(k)))) { won = true; sock.emit('chat', '🎯 BINGO!'); toast('BINGO!'); }
+  };
+  el.classList.remove('hide'); draw();
+}
+$('bBingo').onclick = () => { const el = $('bingo'); if (el.classList.contains('hide')) newBingo(); else el.classList.add('hide'); };
+
+$('bRecap').onclick = () => { if (confirm('Encerrar a noite e mostrar o resumo para todos?')) sock.emit('recap'); };
+sock.on('recap', ({ stats, score }) => {
+  const el = $('recap'), top = o => Object.entries(o).sort((a, b) => b[1] - a[1]);
+  el.innerHTML = '<b>Resumo da noite</b><div>Assistido: ' + (stats.watched.map(x => esc(srcName(x))).join(', ') || 'nada registrado') + '</div>' +
+    '<div>Reações: ' + (top(stats.react).map(([e, n]) => e + ' ' + n).join('  ') || 'nenhuma') + '</div>' +
+    '<div>Quem mais falou: ' + (top(stats.msgs).slice(0, 3).map(([n, c]) => esc(n) + ' (' + c + ')').join(', ') || 'ninguém') + '</div>' +
+    (Object.keys(score).length ? '<div>Palpites: ' + top(score).map(([n, p]) => esc(n) + ' ' + p).join(' · ') + '</div>' : '') +
+    '<div><button class="x" id="rclose">Fechar</button></div>';
+  el.classList.remove('hide'); el.onclick = e => { if (e.target.id === 'rclose') el.classList.add('hide'); };
+});
+
+document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('#tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.tools').forEach(g => g.classList.toggle('hide', g.dataset.g !== b.dataset.g));
+});
+
+/* ---------- Transmitir arquivo (so o anfitriao precisa ter o filme) ---------- */
+let fileCast = false;
+$('bCast').onclick = () => {
+  if (stream && fileCast) return stopShare();
+  if (stream) return toast('Pare a tela compartilhada antes.');
+  $('castfile').click();
+};
+$('castfile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  fileCast = true; v.src = URL.createObjectURL(f); showPlayer(); e.target.value = '';
+  note('Dê play no vídeo para começar a transmitir. Seus amigos recebem imagem e som. Deixe esta aba aberta.');
+  v.addEventListener('playing', () => {
+    if (!fileCast || stream) return;
+    stream = v.captureStream ? v.captureStream() : v.mozCaptureStream();
+    $('bCast').textContent = 'Parar transmissão';
+    note('Transmitindo para ' + (Object.keys(users).length - 1) + ' pessoa(s). Pausar, avançar e voltar aqui vale para todos.');
+    Object.keys(users).forEach(id => id !== sock.id && call(id));
+  }, { once: true });
+};
+
+/* ---------- Contagem para quem usa Netflix, Prime etc. na própria conta ---------- */
+$('bCount').onclick = () => sock.emit('count');
+sock.on('count', () => {
+  let n = 5;
+  const tick = () => {
+    if (n > 0) { note('<b style="font-size:2rem">' + n + '</b> Deixe o filme pronto, com o play parado.'); n--; setTimeout(tick, 1000); }
+    else { note('<b style="font-size:2rem">Dê play agora!</b>'); setTimeout(() => note(''), 3000); }
+  };
+  tick();
+});
+
+/* ---------- Tela compartilhada (WebRTC) ---------- */
+function mk(id) {
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  pc.onicecandidate = e => e.candidate && sock.emit('signal', { to: id, data: { ice: e.candidate } });
+  pc.ontrack = e => {
+    scr.srcObject = e.streams[0];
+    scr.classList.remove('hide'); v.classList.add('hide'); $('ytbox').classList.add('hide'); $('empty').classList.add('hide');
+    v.pause(); if (ytp && ytp.pauseVideo) ytp.pauseVideo();
+  };
+  return pc;
+}
+async function call(id) {
+  if (peers[id]) peers[id].close();
+  const pc = peers[id] = mk(id);
+  stream.getTracks().forEach(t => pc.addTrack(t, stream));
+  const n = Object.keys(users).length;
+  const q = $('qual').value, kbps = q === 'auto' ? (n <= 6 ? 3000 : n <= 11 ? 1500 : 800) : +q;
+  pc.getSenders().forEach(s => {
+    if (s.track && s.track.kind === 'video') {
+      const p = s.getParameters(); if (!p.encodings || !p.encodings.length) p.encodings = [{}];
+      p.encodings[0].maxBitrate = kbps * 1000;
+      p.encodings[0].scaleResolutionDownBy = kbps >= 2500 ? 1 : kbps >= 1200 ? 1.5 : 2; s.setParameters(p).catch(() => {});
+    }
+  });
+  const o = await pc.createOffer(); await pc.setLocalDescription(o);
+  sock.emit('signal', { to: id, data: { sdp: pc.localDescription } });
+}
+sock.on('signal', async ({ from, data }) => {
+  if (data.sdp) {
+    if (data.sdp.type === 'offer') { if (peers[from]) peers[from].close(); peers[from] = mk(from); }
+    const pc = peers[from]; if (!pc) return;
+    await pc.setRemoteDescription(data.sdp);
+    if (data.sdp.type === 'offer') {
+      const a = await pc.createAnswer(); await pc.setLocalDescription(a);
+      sock.emit('signal', { to: from, data: { sdp: pc.localDescription } });
+    }
+  } else if (data.ice && peers[from]) {
+    try { await peers[from].addIceCandidate(data.ice); } catch (e) {}
+  }
+});
+sock.on('share-stop', () => {
+  scr.srcObject = null; scr.classList.add('hide');
+  if (mode === 'yt') $('ytbox').classList.remove('hide');
+  else if (v.src) v.classList.remove('hide'); else $('empty').classList.remove('hide');
+});
+
+$('bShare').onclick = async () => {
+  if (stream) return stopShare();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) return toast('Seu navegador não permite compartilhar a tela aqui.');
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 }, audio: true }); }
+  catch (e) { return; }
+  stream.getVideoTracks()[0].onended = stopShare;
+  $('bShare').textContent = 'Parar de compartilhar';
+  note('Você está transmitindo para ' + (Object.keys(users).length - 1) + ' pessoa(s). Marque "Compartilhar áudio" na janela do navegador para o som chegar também. Netflix e similares costumam mostrar tela preta.');
+  Object.keys(users).forEach(id => id !== sock.id && call(id));
+};
+function stopShare() {
+  if (!stream) return;
+  stream.getTracks().forEach(t => t.stop()); stream = null;
+  Object.values(peers).forEach(p => p.close()); peers = {};
+  fileCast = false; $('bCast').textContent = 'Transmitir arquivo para todos';
+  sock.emit('share-stop'); $('bShare').textContent = 'Compartilhar tela'; note('');
+}
+</script>
+</body>
+</html>
