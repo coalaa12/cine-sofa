@@ -15,6 +15,19 @@ const SCHEMA = [ // so cria o que nao existe; nunca apaga nada
 ];
 async function initDb(pool) { for (const sql of SCHEMA) await pool.query(sql); }
 
+const ql = r => r.queue.map(x => ({ qid: x.qid, kind: x.src.kind, id: x.src.id, url: x.src.url, title: x.title, by: x.by, byId: x.byId, voters: x.voters }));
+function titleFromUrl(u) {
+  try { const n = decodeURIComponent(new URL(u).pathname.split('/').filter(Boolean).pop() || ''); return (n || new URL(u).host).replace(/[\u0000-\u001f]/g, ' ').slice(0, 100); }
+  catch (e) { return 'Vídeo'; }
+}
+async function ytTitle(id) { // so consulta o endereco fixo do YouTube, com o codigo ja validado (11 caracteres)
+  try {
+    const r = await fetch('https://www.youtube.com/oembed?format=json&url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + id), { signal: AbortSignal.timeout(3000) });
+    if (!r.ok) return '';
+    return String((await r.json()).title || '').replace(/[\u0000-\u001f]/g, ' ').slice(0, 100);
+  } catch (e) { return ''; }
+}
+
 function build(pool) {
 
 const app = express();
@@ -56,7 +69,7 @@ function limitIp(ip, key, max, ms) {
 setInterval(() => ipHits.clear(), 10 * 60 * 1000).unref();
 const ipOf = s => String(s.handshake.headers['x-forwarded-for'] || s.handshake.address || '').split(',')[0].trim();
 const HEAVY = new Set(['signal', 'vsignal', 'ctl', 'lag']);
-const EXTRA = { suggest: [5, 60000], 'queue-add': [10, 60000], react: [15, 5000], sfx: [4, 10000], count: [2, 30000], break: [3, 60000], 'quick-new': [4, 60000], chat: [8, 10000] };
+const EXTRA = { suggest: [5, 60000], 'queue-add': [10, 60000], react: [15, 5000], sfx: [4, 10000], count: [2, 30000], break: [3, 60000], 'quick-new': [4, 60000], chat: [8, 10000], 'queue-vote': [20, 10000], 'queue-move': [20, 10000], 'queue-remove': [10, 10000], 'queue-play': [5, 10000] };
 
 /* ---------- validacao ---------- */
 const cleanName = n => String(n || '').replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24) || 'Visitante';
@@ -244,7 +257,7 @@ io.on('connection', s => {
     });
     let state = r.state;
     if (state && state.playing) state = { ...state, time: state.time + (Date.now() - state.at) / 1000 };
-    s.emit('joined', { id: s.id, state, users: users(room), host: r.host, locked: r.locked, chat: r.chat, queue: r.queue, poll: r.poll, quick: r.quick ? qv(r) : null, voice: [...r.voice] });
+    s.emit('joined', { id: s.id, state, users: users(room), host: r.host, locked: r.locked, chat: r.chat, queue: ql(r), poll: r.poll, quick: r.quick ? qv(r) : null, voice: [...r.voice] });
     s.to(room).emit('user-joined', { id: s.id, name: s.name, av: s.user ? AVATARS[+s.user.avatar] || AVATARS[0] : '', acct: !!s.user });
     if (s.user && pool) pool.query('INSERT INTO history(user_id, room) VALUES($1, $2) RETURNING id', [s.user.id, room]).then(r => { s.hid = r.rows[0].id; }).catch(() => {});
   });
@@ -311,16 +324,44 @@ io.on('connection', s => {
   });
   s.on('poll-clear', () => { const r = rooms[s.room]; if (r && r.host === s.id) { r.poll = []; io.to(s.room).emit('poll', []); } });
 
+  const live = x => x.voters.filter(id => { const t = io.sockets.sockets.get(id); return t && t.room === s.room; }).length;
+  const playFrom = (r, i) => {
+    const [it] = r.queue.splice(i, 1), src = it.src;
+    r.state = { src, playing: false, time: 0, at: Date.now() };
+    r.stats.watched.push(src); io.to(s.room).emit('source', src); io.to(s.room).emit('queue', ql(r));
+  };
   s.on('queue-add', src => {
     const r = rooms[s.room]; src = cleanSrc(src, false);
     if (!r || !src || r.queue.length >= 20) return;
-    r.queue.push(src); io.to(s.room).emit('queue', r.queue);
+    const it = { qid: Math.random().toString(36).slice(2, 9), src, title: src.kind === 'url' ? titleFromUrl(src.url) : '', by: s.name, byId: s.id, voters: [] };
+    r.queue.push(it); io.to(s.room).emit('queue', ql(r));
+    if (src.kind === 'yt') ytTitle(src.id).then(t => { if (t && r.queue.includes(it)) { it.title = t; io.to(s.room).emit('queue', ql(r)); } });
   });
-  s.on('queue-next', () => {
-    if (!can(s)) return;
-    const r = rooms[s.room], src = r.queue.shift(); if (!src) return;
-    r.state = { src, playing: false, time: 0, at: Date.now() };
-    r.stats.watched.push(src); io.to(s.room).emit('source', src); io.to(s.room).emit('queue', r.queue);
+  s.on('queue-vote', qid => {
+    const r = rooms[s.room], it = r && r.queue.find(x => x.qid === qid); if (!it) return;
+    const i = it.voters.indexOf(s.id); if (i < 0) it.voters.push(s.id); else it.voters.splice(i, 1);
+    io.to(s.room).emit('queue', ql(r));
+  });
+  s.on('queue-move', ({ qid, dir } = {}) => {
+    const r = rooms[s.room]; if (!r || !can(s)) return;
+    const i = r.queue.findIndex(x => x.qid === qid), j = i + (dir === 'up' ? -1 : dir === 'down' ? 1 : 0);
+    if (i < 0 || j < 0 || j >= r.queue.length || i === j) return;
+    [r.queue[i], r.queue[j]] = [r.queue[j], r.queue[i]]; io.to(s.room).emit('queue', ql(r));
+  });
+  s.on('queue-remove', qid => {
+    const r = rooms[s.room]; if (!r) return;
+    const i = r.queue.findIndex(x => x.qid === qid); if (i < 0) return;
+    if (r.host !== s.id && r.queue[i].byId !== s.id) return; // so o anfitriao ou quem adicionou
+    r.queue.splice(i, 1); io.to(s.room).emit('queue', ql(r));
+  });
+  s.on('queue-play', qid => {
+    const r = rooms[s.room]; if (!r || !can(s)) return;
+    const i = r.queue.findIndex(x => x.qid === qid); if (i >= 0) playFrom(r, i);
+  });
+  s.on('queue-next', () => { // toca o mais votado; empate ou sem votos: o primeiro da fila
+    const r = rooms[s.room]; if (!r || !can(s) || !r.queue.length) return;
+    let best = 0, bv = -1; r.queue.forEach((x, i) => { const v = live(x); if (v > bv) { bv = v; best = i; } });
+    playFrom(r, best);
   });
 
   s.on('break', ({ secs, label } = {}) => {
