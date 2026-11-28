@@ -74,6 +74,7 @@ button:disabled{opacity:.4;cursor:not-allowed}
 .cine aside,.cine .top{display:none}.cine #room{grid-template-columns:1fr}.cine .stage{max-height:82vh;margin:auto}
 html[data-theme=azul]{--bg:#0a1230;--panel:#111c44;--line:#25346b;--ink:#eaf0ff;--mute:#93a4d6;--lamp:#2f7bff;--hi:#6fa8ff}
 html[data-theme=claro]{--bg:#f6f3f0;--panel:#fff;--line:#d9d2cc;--ink:#1d1517;--mute:#6f6165;--lamp:#c4202f;--hi:#b01c2a;--nl:36%}
+@media (pointer:coarse){button,select,input{min-height:44px}#tabs button{padding:.7em 1.1em}#reacts button{padding:.4em .8em}.x{min-height:38px;min-width:38px}}
 @media(max-width:860px){#room{grid-template-columns:1fr}aside{height:420px}}
 </style>
 </head>
@@ -122,6 +123,8 @@ html[data-theme=claro]{--bg:#f6f3f0;--panel:#fff;--line:#d9d2cc;--ink:#1d1517;--
       <button id="bBreak" class="sec">Intervalo</button>
       <button id="bSched" class="sec">Agendar sessão</button>
       <button id="bCount" class="sec">Contagem para dar play</button>
+      <button id="bVoice" class="sec">Entrar no áudio</button>
+      <button id="bMic" class="sec hide">🎙️ Microfone: mutado</button>
       <button id="bRecap" class="sec hide">Resumo da noite</button>
     </div>
     <div class="tools hide" data-g="votos">
@@ -161,7 +164,7 @@ html[data-theme=claro]{--bg:#f6f3f0;--panel:#fff;--line:#d9d2cc;--ink:#1d1517;--
 const $ = id => document.getElementById(id);
 const sock = io();
 const v = $('v'), scr = $('s');
-const lag = new Set(), muted = new Set();
+const lag = new Set(), muted = new Set(), vin = new Set();
 let hostId = null, locked = false, users = {}, peers = {}, stream = null, applying = false, wantFile = false, pendingCtl = null, room = '';
 
 function toast(t) {
@@ -189,7 +192,8 @@ function join() {
   sock.emit('join', { room: code, name, pass: $('pass').value });
 }
 
-sock.on('joined', ({ id, state, users: list, host, locked: lk, chat, queue, poll, quick: qk }) => {
+sock.on('joined', ({ id, state, users: list, host, locked: lk, chat, queue, poll, quick: qk, voice }) => {
+  (voice || []).forEach(i => vin.add(i));
   hostId = host; locked = lk; (chat || []).forEach(showMsg); renderQueue(queue || []); renderPoll(poll || []); renderQuick(qk);
   users = {}; list.forEach(u => users[u.id] = u.name);
   $('lobby').classList.add('hide'); $('room').classList.remove('hide');
@@ -203,7 +207,7 @@ $('invite').onclick = () => navigator.clipboard.writeText(location.origin + '/?s
 function renderUsers() {
   const me = sock.id === hostId, n = Object.keys(users).length;
   $('count').textContent = n + (n === 1 ? ' pessoa' : ' pessoas');
-  $('who').innerHTML = Object.entries(users).map(([id, nm]) => (id === hostId ? '👑 ' : '') + (lag.has(id) ? '⚠️ ' : '') + esc(nm) +
+  $('who').innerHTML = Object.entries(users).map(([id, nm]) => (id === hostId ? '👑 ' : '') + (vin.has(id) ? '🎙️ ' : '') + (lag.has(id) ? '⚠️ ' : '') + esc(nm) +
     (id !== sock.id ? ' <button class="x" data-m="' + esc(nm) + '" title="Silenciar no chat">' + (muted.has(nm) ? '🔈' : '🔇') + '</button>' : '') +
     (me && id !== sock.id ? ' <button class="x" data-h="' + id + '" title="Passar anfitrião">👑</button> <button class="x" data-id="' + id + '" title="Remover da sala">✕</button>' : '')).join(' · ');
 }
@@ -222,6 +226,7 @@ sock.on('user-joined', u => {
 sock.on('user-left', id => {
   log('<i>' + esc(users[id] || 'Alguém') + ' saiu</i>'); delete users[id]; renderUsers();
   if (peers[id]) { peers[id].close(); delete peers[id]; }
+  vdrop(id);
 });
 
 /* ---------- Chat ---------- */
@@ -514,6 +519,83 @@ document.querySelectorAll('#tabs button').forEach(b => b.onclick = () => {
   document.querySelectorAll('.tools').forEach(g => g.classList.toggle('hide', g.dataset.g !== b.dataset.g));
 });
 
+/* ---------- Chat de voz (cada pessoa liga direto com as outras) ---------- */
+const vpeers = {}; let mic = null;
+function vdrop(id) {
+  if (vpeers[id]) { vpeers[id].close(); delete vpeers[id]; }
+  const a = document.getElementById('va-' + id); if (a) a.remove();
+  vin.delete(id); renderUsers();
+}
+function vmk(id) {
+  const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  pc.onicecandidate = e => e.candidate && sock.emit('vsignal', { to: id, data: { ice: e.candidate } });
+  pc.ontrack = e => {
+    let a = document.getElementById('va-' + id);
+    if (!a) { a = document.createElement('audio'); a.id = 'va-' + id; a.autoplay = true; document.body.appendChild(a); }
+    a.srcObject = e.streams[0];
+  };
+  mic.getTracks().forEach(t => pc.addTrack(t, mic));
+  vpeers[id] = pc; return pc;
+}
+async function vcall(id) {
+  if (!mic) return;
+  const pc = vmk(id), o = await pc.createOffer(); await pc.setLocalDescription(o);
+  sock.emit('vsignal', { to: id, data: { sdp: pc.localDescription } });
+}
+sock.on('vsignal', async ({ from, data }) => {
+  if (!mic) return;
+  if (data.sdp) {
+    if (data.sdp.type === 'offer') { if (vpeers[from]) vpeers[from].close(); vmk(from); }
+    const pc = vpeers[from]; if (!pc) return;
+    await pc.setRemoteDescription(data.sdp);
+    if (data.sdp.type === 'offer') {
+      const a = await pc.createAnswer(); await pc.setLocalDescription(a);
+      sock.emit('vsignal', { to: from, data: { sdp: pc.localDescription } });
+    }
+  } else if (data.ice && vpeers[from]) { try { await vpeers[from].addIceCandidate(data.ice); } catch (e) {} }
+});
+function setMic(on) {
+  if (!mic) return;
+  mic.getAudioTracks().forEach(t => t.enabled = on);
+  $('bMic').textContent = on ? '🎙️ Microfone: aberto' : '🎙️ Microfone: mutado';
+}
+function leaveVoice() {
+  if (!mic) return;
+  Object.keys(vpeers).forEach(id => { vpeers[id].close(); delete vpeers[id]; const a = document.getElementById('va-' + id); if (a) a.remove(); });
+  mic.getTracks().forEach(t => t.stop()); mic = null; vin.delete(sock.id);
+  sock.emit('voice-leave'); $('bMic').classList.add('hide'); $('bVoice').textContent = 'Entrar no áudio'; renderUsers();
+}
+$('bVoice').onclick = async () => {
+  if (mic) return leaveVoice();
+  try { mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false }); }
+  catch (e) { return toast('Não consegui acessar o microfone. Libere a permissão no navegador.'); }
+  setMic(false); vin.add(sock.id); renderUsers();
+  $('bMic').classList.remove('hide'); $('bVoice').textContent = 'Sair do áudio';
+  sock.emit('voice-join'); toast(touch ? 'Use fones de ouvido. Toque em Microfone para falar.' : 'Use fones de ouvido. Segure a tecla V para falar.');
+};
+$('bMic').onclick = () => { if (mic) setMic(!mic.getAudioTracks()[0].enabled); };
+sock.on('voice-list', ids => ids.forEach(vcall));
+sock.on('voice-state', ({ id, on }) => { if (on) { vin.add(id); renderUsers(); } else vdrop(id); });
+sock.on('voice-full', () => { toast('O áudio está cheio (máximo de 15 pessoas).'); leaveVoice(); });
+const typing = () => /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
+addEventListener('keydown', e => { if (e.key.toLowerCase() === 'v' && mic && !e.repeat && !typing()) setMic(true); });
+addEventListener('keyup', e => { if (e.key.toLowerCase() === 'v' && mic && !typing()) setMic(false); });
+
+/* ---------- Celular e diagnostico de audio ---------- */
+const touch = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+const canShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+const canCap = !!(HTMLMediaElement.prototype.captureStream || HTMLMediaElement.prototype.mozCaptureStream);
+if (touch || !canShare) $('bShare').classList.add('hide');
+if (touch || !canCap) $('bCast').classList.add('hide');
+if ($('bShare').classList.contains('hide') && $('bCast').classList.contains('hide')) $('qual').classList.add('hide');
+function checkAudio() {
+  const none = v.webkitAudioDecodedByteCount === 0 || v.mozHasAudio === false;
+  if (none && !v.paused && !v.muted && v.volume > 0 && v.currentTime > 2)
+    note('⚠️ Este vídeo está tocando <b>sem som</b>. Se ele deveria ter áudio, o formato (comum: AC3, DTS ou E-AC3 em arquivos .mkv) não é suportado pelo navegador, e os amigos também não ouvem. Converta o áudio para AAC com o VLC ou o HandBrake, ou use outro arquivo.');
+}
+let chk = '';
+v.addEventListener('playing', () => { if (chk === v.src) return; chk = v.src; setTimeout(checkAudio, 5000); });
+
 /* ---------- Transmitir arquivo (so o anfitriao precisa ter o filme) ---------- */
 let fileCast = false;
 $('bCast').onclick = () => {
@@ -530,7 +612,11 @@ $('castfile').onchange = e => {
     stream = v.captureStream ? v.captureStream() : v.mozCaptureStream();
     $('bCast').textContent = 'Parar transmissão';
     note('Transmitindo para ' + (Object.keys(users).length - 1) + ' pessoa(s). Pausar, avançar e voltar aqui vale para todos.');
-    Object.keys(users).forEach(id => id !== sock.id && call(id));
+    let rn = null; const again = () => Object.keys(users).forEach(id => id !== sock.id && call(id));
+    stream.onaddtrack = () => { clearTimeout(rn); rn = setTimeout(again, 400); };
+    setTimeout(again, 600);
+    setTimeout(() => { if (stream) note('Transmitindo para ' + (Object.keys(users).length - 1) + ' pessoa(s). ' +
+      (stream.getAudioTracks().length ? '🔊 Áudio do arquivo capturado.' : '⚠️ O navegador NÃO capturou áudio deste arquivo (formato de áudio não suportado, comum em .mkv). Converta o áudio para AAC.')); }, 1500);
   }, { once: true });
 };
 
@@ -546,6 +632,11 @@ sock.on('count', () => {
 });
 
 /* ---------- Tela compartilhada (WebRTC) ---------- */
+async function setLocal(pc, d) {
+  try {
+    await pc.setLocalDescription({ type: d.type, sdp: d.sdp.replace(/a=fmtp:(\d+) ([^\r\n]*useinbandfec=1[^\r\n]*)/g, 'a=fmtp:$1 $2;stereo=1;sprop-stereo=1;maxaveragebitrate=128000') });
+  } catch (e) { await pc.setLocalDescription(d); }
+}
 function mk(id) {
   const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
   pc.onicecandidate = e => e.candidate && sock.emit('signal', { to: id, data: { ice: e.candidate } });
@@ -553,6 +644,15 @@ function mk(id) {
     scr.srcObject = e.streams[0];
     scr.classList.remove('hide'); v.classList.add('hide'); $('ytbox').classList.add('hide'); $('empty').classList.add('hide');
     v.pause(); if (ytp && ytp.pauseVideo) ytp.pauseVideo();
+    scr.muted = false; scr.volume = 1;
+    clearTimeout(mk.t); mk.t = setTimeout(() => {
+      const st = scr.srcObject;
+      if (st && !st.getAudioTracks().length) note('Chegou só a imagem, sem áudio. Avise quem está transmitindo.');
+    }, 2500);
+    const pl = scr.play(); if (pl && pl.catch) pl.catch(() => {
+      note('O navegador bloqueou o som. <button id="unm">Ativar som</button>');
+      $('unm').onclick = () => { scr.muted = false; scr.play(); note(''); };
+    });
   };
   return pc;
 }
@@ -569,7 +669,7 @@ async function call(id) {
       p.encodings[0].scaleResolutionDownBy = kbps >= 2500 ? 1 : kbps >= 1200 ? 1.5 : 2; s.setParameters(p).catch(() => {});
     }
   });
-  const o = await pc.createOffer(); await pc.setLocalDescription(o);
+  const o = await pc.createOffer(); await setLocal(pc, o);
   sock.emit('signal', { to: id, data: { sdp: pc.localDescription } });
 }
 sock.on('signal', async ({ from, data }) => {
@@ -578,7 +678,7 @@ sock.on('signal', async ({ from, data }) => {
     const pc = peers[from]; if (!pc) return;
     await pc.setRemoteDescription(data.sdp);
     if (data.sdp.type === 'offer') {
-      const a = await pc.createAnswer(); await pc.setLocalDescription(a);
+      const a = await pc.createAnswer(); await setLocal(pc, a);
       sock.emit('signal', { to: from, data: { sdp: pc.localDescription } });
     }
   } else if (data.ice && peers[from]) {
