@@ -96,6 +96,10 @@ textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var
 .hl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.hl small{color:var(--mute)}
 button.danger{background:var(--red)}
 a.btn{display:inline-flex;align-items:center;justify-content:center;padding:.6em 1.05em;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--ink);text-decoration:none;font-weight:600}
+.qr{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
+.qt{flex:1;min-width:0;overflow-wrap:anywhere}.qt small{display:block;color:var(--mute)}
+.nx{background:var(--lamp);color:#fff;border-radius:99px;padding:0 .55em;font-size:.7rem;font-weight:600}
+.x.on{border-color:var(--lamp);color:var(--hi)}
 .x{padding:0 .4em;background:transparent;border:1px solid var(--line);color:var(--ink);font-size:.8rem;border-radius:6px}
 .fl{position:absolute;bottom:8%;font-size:2.2rem;animation:up 2.5s ease-out forwards;pointer-events:none}
 @keyframes up{to{transform:translateY(-70%);opacity:0}}
@@ -166,7 +170,7 @@ aside{position:static;height:auto;min-height:55vh}#log{max-height:45vh}
       <button id="bCast" class="sec">Transmitir arquivo para todos</button>
       <button id="bShare" class="sec">Compartilhar tela</button>
       <button id="bQAdd" class="sec">Adicionar à fila</button>
-      <button id="bQNext" class="sec">Próximo da fila</button>
+      <button id="bQNext" class="sec">Tocar o mais votado</button>
       <button id="bSync" class="sec">Sincronizar todos comigo</button>
       <button id="bSrt" class="sec">Legendas (.srt)</button>
       <select id="qual" title="Qualidade da transmissão"><option value="auto">Qualidade: automática</option><option value="3000">Alta</option><option value="1500">Média</option><option value="800">Leve</option></select>
@@ -219,6 +223,7 @@ const $ = id => document.getElementById(id);
 const sock = io();
 const v = $('v'), scr = $('s');
 const lag = new Set(), muted = new Set(), vin = new Set(), meta = {};
+let lastQ = [];
 let joinedOnce = false, joinInfo = null;
 let hostId = null, locked = false, users = {}, peers = {}, stream = null, applying = false, wantFile = false, pendingCtl = null, room = '';
 
@@ -263,7 +268,7 @@ $('invite').onclick = () => navigator.clipboard.writeText(location.origin + '/?s
 
 function renderUsers() {
   const me = sock.id === hostId, n = Object.keys(users).length;
-  $('count').textContent = n + (n === 1 ? ' pessoa' : ' pessoas');
+  $('count').textContent = n + (n === 1 ? ' pessoa' : ' pessoas'); renderQueue(lastQ);
   $('who').innerHTML = Object.entries(users).map(([id, nm]) => (id === hostId ? '👑 ' : '') + (vin.has(id) ? '🎙️ ' : '') + (lag.has(id) ? '⚠️ ' : '') + (meta[id] && meta[id].av ? esc(meta[id].av) + ' ' : '') + esc(nm) + (meta[id] && meta[id].acct ? ' <small title="Conta cadastrada">✓</small>' : '') +
     (id !== sock.id ? ' <button class="x" data-m="' + esc(nm) + '" title="Silenciar no chat">' + (muted.has(nm) ? '🔈' : '🔇') + '</button>' : '') +
     (me && id !== sock.id ? ' <button class="x" data-h="' + id + '" title="Passar anfitrião">👑</button> <button class="x" data-id="' + id + '" title="Remover da sala">✕</button>' : '')).join(' · ');
@@ -420,7 +425,7 @@ function applyLock() {
   $('bLock').classList.toggle('hide', !me); $('bBet').classList.toggle('hide', !me); $('bRecap').classList.toggle('hide', !me);
   $('bLock').textContent = locked ? 'Liberar controles' : 'Só eu controlo';
 }
-sock.on('host', h => { hostId = h.host; locked = h.locked; renderUsers(); applyLock(); });
+sock.on('host', h => { hostId = h.host; locked = h.locked; renderUsers(); applyLock(); renderQueue(lastQ); });
 $('bLock').onclick = () => sock.emit('lock', !locked);
 
 document.querySelectorAll('#reacts button:not(.sf)').forEach(b => b.onclick = () => sock.emit('react', b.textContent));
@@ -451,9 +456,26 @@ $('srt').onchange = async e => {
 /* ---------- Fila, votacao, sons, chat no video, app ---------- */
 const srcName = x => x.kind === 'yt' ? 'YouTube: ' + x.id : x.kind === 'file' ? x.name : (x.url || '').split('/').pop().slice(0, 40);
 function renderQueue(q) {
-  const el = $('queue'); if (!q.length) return el.classList.add('hide');
-  el.classList.remove('hide'); el.innerHTML = '<b>Fila</b><br>' + q.map((x, i) => (i + 1) + '. ' + esc(srcName(x))).join('<br>');
+  lastQ = q; const el = $('queue'); if (!q.length) return el.classList.add('hide');
+  el.classList.remove('hide');
+  const me = sock.id === hostId, ctl = !locked || me, votes = x => x.voters.filter(id => users[id]).length;
+  let nxt = 0; q.forEach((x, i) => { if (votes(x) > votes(q[nxt])) nxt = i; });
+  el.innerHTML = '<b>Fila (' + q.length + ')</b>' + q.map((x, i) => {
+    const t = x.title || (x.kind === 'yt' ? 'Vídeo do YouTube' : 'Vídeo'), mine = x.voters.includes(sock.id);
+    return '<div class="qr"><span class="qt">' + (i === nxt ? '<span class="nx">próximo</span> ' : '') + esc(t) + '<small>por ' + esc(x.by) + '</small></span>' +
+      '<button class="x' + (mine ? ' on' : '') + '" data-qv="' + x.qid + '" aria-pressed="' + mine + '" title="Votar para tocar em seguida">👍 ' + votes(x) + '</button>' +
+      (ctl ? '<button class="x" data-qu="' + x.qid + '" aria-label="Subir"' + (i === 0 ? ' disabled' : '') + '>▲</button><button class="x" data-qd="' + x.qid + '" aria-label="Descer"' + (i === q.length - 1 ? ' disabled' : '') + '>▼</button><button class="x" data-qp="' + x.qid + '" aria-label="Tocar agora" title="Tocar agora">▶</button>' : '') +
+      (me || x.byId === sock.id ? '<button class="x" data-qr="' + x.qid + '" aria-label="Remover da fila">✕</button>' : '') + '</div>';
+  }).join('');
 }
+$('queue').onclick = e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return; const d = b.dataset;
+  if (d.qv) sock.emit('queue-vote', d.qv);
+  else if (d.qu) sock.emit('queue-move', { qid: d.qu, dir: 'up' });
+  else if (d.qd) sock.emit('queue-move', { qid: d.qd, dir: 'down' });
+  else if (d.qp) sock.emit('queue-play', d.qp);
+  else if (d.qr) sock.emit('queue-remove', d.qr);
+};
 sock.on('queue', renderQueue);
 function renderPoll(p) {
   const el = $('poll'); if (!p.length) return el.classList.add('hide');
