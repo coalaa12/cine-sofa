@@ -3,6 +3,19 @@ const http = require('http');
 const fs = require('fs');
 const crypto = require('crypto');
 const { Server } = require('socket.io');
+let Pool; try { ({ Pool } = require('pg')); } catch (e) { Pool = null; }
+const AVATARS = ['🎬', '🍿', '🎥', '📽️', '🦊', '🐼', '🐙', '🦄', '🐸', '🐯', '🦉', '🐧', '🚀', '🎮', '🎧', '⭐', '🔥', '🌙', '🌈', '🍕', '🧛', '🤖', '👻', '🐳'];
+const SCHEMA = [ // so cria o que nao existe; nunca apaga nada
+  `CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, username TEXT NOT NULL, username_lc TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE,
+    pass_hash TEXT NOT NULL, avatar TEXT NOT NULL DEFAULT '0', bio TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT '',
+    msg_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now())`,
+  `CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), expires_at TIMESTAMPTZ NOT NULL)`,
+  `CREATE TABLE IF NOT EXISTS favorites (user_id INTEGER NOT NULL REFERENCES users(id), room TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_id, room))`,
+  `CREATE TABLE IF NOT EXISTS history (id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id), room TEXT NOT NULL, joined_at TIMESTAMPTZ NOT NULL DEFAULT now(), left_at TIMESTAMPTZ)`,
+];
+async function initDb(pool) { for (const sql of SCHEMA) await pool.query(sql); }
+
+function build(pool) {
 
 const app = express();
 app.set('trust proxy', true);
@@ -61,12 +74,145 @@ function cleanSrc(src, allowFile) {
 }
 
 function users(room) {
-  return [...(io.sockets.adapter.rooms.get(room) || [])].map(id => ({ id, name: io.sockets.sockets.get(id).name }));
+  return [...(io.sockets.adapter.rooms.get(room) || [])].map(id => {
+    const x = io.sockets.sockets.get(id);
+    return { id, name: x.name, av: x.user ? AVATARS[+x.user.avatar] || AVATARS[0] : '', acct: !!x.user };
+  });
 }
 const pub = r => ({ host: r.host, locked: r.locked });
 const pl = r => r.poll.map(o => ({ id: o.id, title: o.title, by: o.by, n: o.voters.length, voters: o.voters }));
 const qv = r => ({ ...r.quick, counts: r.quick.opts.map((_, i) => Object.values(r.quick.votes).filter(v => v === i).length), score: r.score });
 const can = s => { const r = rooms[s.room]; return r && (!r.locked || r.host === s.id); };
+
+
+  /* ---------- contas (PostgreSQL). Sem banco configurado, o site segue so com visitantes ---------- */
+  let dbOk = false;
+  const ready = pool ? initDb(pool).then(() => { dbOk = true; }).catch(e => console.error('Banco de dados indisponivel:', e.message)) : Promise.resolve();
+  const sha = t => crypto.createHash('sha256').update(t).digest('hex');
+  const q = (t, p) => pool.query(t, p);
+  const pubUser = u => ({ id: u.id, username: u.username, avatar: AVATARS[+u.avatar] || AVATARS[0], avatarIdx: +u.avatar || 0, bio: u.bio, status: u.status });
+  async function userFromCookie(h) {
+    const m = String(h || '').match(/(?:^|;\s*)cs_sid=([a-f0-9]{64})/);
+    if (!m || !dbOk) return null;
+    const r = await q('SELECT u.* FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = $1 AND s.expires_at > $2', [sha(m[1]), new Date()]);
+    return r.rows[0] ? { ...r.rows[0], tok: m[1] } : null;
+  }
+  const hashPw = pw => new Promise((ok, no) => {
+    const salt = crypto.randomBytes(16);
+    crypto.scrypt(pw, salt, 64, (e, k) => e ? no(e) : ok('scrypt$' + salt.toString('hex') + '$' + k.toString('hex')));
+  });
+  const checkPw = (pw, stored) => new Promise(ok => {
+    const [, salt, h] = String(stored).split('$');
+    crypto.scrypt(pw, Buffer.from(salt || '', 'hex'), 64, (e, k) => {
+      let good = false; try { good = !e && crypto.timingSafeEqual(k, Buffer.from(h || '', 'hex')); } catch (x) {}
+      ok(good);
+    });
+  });
+  const DUMMY = 'scrypt$' + '00'.repeat(16) + '$' + '00'.repeat(64);
+  const wrap = fn => (req, res, next) => fn(req, res, next).catch(e => { console.error('api:', e.message); res.status(500).json({ error: 'Erro interno.' }); });
+  async function startSession(req, res, uid) {
+    const tok = crypto.randomBytes(32).toString('hex');
+    await q('INSERT INTO sessions(token_hash, user_id, expires_at) VALUES($1, $2, $3)', [sha(tok), uid, new Date(Date.now() + 30 * 864e5)]);
+    res.append('Set-Cookie', 'cs_sid=' + tok + '; HttpOnly; SameSite=Lax; Path=/; Max-Age=2592000' + (req.secure ? '; Secure' : ''));
+  }
+  const clearCookie = res => res.append('Set-Cookie', 'cs_sid=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+  async function stats(uid, msgs) {
+    const h = (await q('SELECT room, joined_at, left_at FROM history WHERE user_id = $1 ORDER BY joined_at DESC LIMIT 5000', [uid])).rows;
+    const ms = h.reduce((a, x) => a + (x.left_at ? Math.max(0, new Date(x.left_at) - new Date(x.joined_at)) : 0), 0);
+    return { sessions: h.length, minutes: Math.round(ms / 60000), rooms: new Set(h.map(x => x.room)).size, messages: msgs };
+  }
+  const txt = (v, n) => String(v || '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, n);
+  const ROOM = /^[a-z0-9_-]{1,30}$/;
+
+  const api = express.Router();
+  api.use(express.json({ limit: '10kb' }));
+  api.use((req, res, next) => { // protecao contra CSRF: cabecalho proprio + mesma origem
+    if (req.method !== 'GET') {
+      const o = req.get('origin'); let bad = req.get('x-cs') !== '1';
+      if (o) { try { bad = bad || new URL(o).host !== req.get('host'); } catch (e) { bad = true; } }
+      if (bad) return res.status(403).json({ error: 'Requisição recusada.' });
+    }
+    next();
+  });
+  api.get('/config', wrap(async (req, res) => { await ready; res.json({ accounts: dbOk, avatars: AVATARS }); }));
+  api.use(wrap(async (req, res, next) => {
+    await ready;
+    if (!dbOk) return res.status(503).json({ error: 'Contas indisponíveis no momento.' });
+    req.user = await userFromCookie(req.headers.cookie); next();
+  }));
+  const need = (req, res, next) => req.user ? next() : res.status(401).json({ error: 'Faça login.' });
+
+  api.post('/register', wrap(async (req, res) => {
+    if (!limitIp(req.ip, 'reg', 20, 3600000)) return res.status(429).json({ error: 'Muitas contas criadas por aqui. Tente mais tarde.' });
+    const b = req.body || {}, username = String(b.username || '').trim(), email = String(b.email || '').trim().toLowerCase(), pw = String(b.password || '');
+    if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) return res.status(400).json({ error: 'Nome de usuário: 3 a 20 letras, números ou _.' });
+    if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ error: 'Email inválido.' });
+    if (pw.length < 8 || pw.length > 128) return res.status(400).json({ error: 'A senha precisa ter de 8 a 128 caracteres.' });
+    const dup = await q('SELECT username_lc FROM users WHERE username_lc = $1 OR email = $2', [username.toLowerCase(), email]);
+    if (dup.rows.length) return res.status(409).json({ error: dup.rows[0].username_lc === username.toLowerCase() ? 'Esse nome de usuário já existe.' : 'Esse email já está cadastrado.' });
+    const r = await q('INSERT INTO users(username, username_lc, email, pass_hash) VALUES($1, $2, $3, $4) RETURNING *', [username, username.toLowerCase(), email, await hashPw(pw)]);
+    await startSession(req, res, r.rows[0].id);
+    res.json({ user: pubUser(r.rows[0]) });
+  }));
+  api.post('/login', wrap(async (req, res) => {
+    const b = req.body || {}, login = String(b.login || '').trim().toLowerCase().slice(0, 254), pw = String(b.password || '').slice(0, 128);
+    if (!limitIp(req.ip, 'login', 30, 600000) || !limitIp(login, 'acct', 10, 900000)) return res.status(429).json({ error: 'Muitas tentativas. Espere alguns minutos.' });
+    const u = (await q('SELECT * FROM users WHERE username_lc = $1 OR email = $1', [login])).rows[0];
+    const ok = await checkPw(pw, u ? u.pass_hash : DUMMY);
+    if (!u || !ok) return res.status(401).json({ error: 'Usuário ou senha incorretos.' });
+    await startSession(req, res, u.id);
+    res.json({ user: pubUser(u) });
+  }));
+  api.post('/logout', wrap(async (req, res) => {
+    if (req.user) await q('DELETE FROM sessions WHERE token_hash = $1', [sha(req.user.tok)]);
+    clearCookie(res); res.json({ ok: true });
+  }));
+  api.get('/me', need, wrap(async (req, res) => {
+    res.json({ user: { ...pubUser(req.user), email: req.user.email, since: req.user.created_at }, stats: await stats(req.user.id, req.user.msg_count) });
+  }));
+  api.patch('/me', need, wrap(async (req, res) => {
+    const b = req.body || {}, av = +b.avatar;
+    if (!Number.isInteger(av) || av < 0 || av >= AVATARS.length) return res.status(400).json({ error: 'Avatar inválido.' });
+    const r = await q('UPDATE users SET bio = $1, status = $2, avatar = $3 WHERE id = $4 RETURNING *', [txt(b.bio, 160), txt(b.status, 40), String(av), req.user.id]);
+    res.json({ user: pubUser(r.rows[0]) });
+  }));
+  api.get('/me/favorites', need, wrap(async (req, res) => {
+    res.json({ rooms: (await q('SELECT room FROM favorites WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [req.user.id])).rows.map(x => x.room) });
+  }));
+  api.post('/me/favorites', need, wrap(async (req, res) => {
+    const room = String((req.body || {}).code || '').toLowerCase();
+    if (!ROOM.test(room)) return res.status(400).json({ error: 'Código de sala inválido.' });
+    if ((await q('SELECT room FROM favorites WHERE user_id = $1', [req.user.id])).rows.length >= 100) return res.status(400).json({ error: 'Limite de 100 favoritas.' });
+    await q('INSERT INTO favorites(user_id, room) VALUES($1, $2) ON CONFLICT DO NOTHING', [req.user.id, room]);
+    res.json({ ok: true });
+  }));
+  api.delete('/me/favorites', need, wrap(async (req, res) => {
+    await q('DELETE FROM favorites WHERE user_id = $1 AND room = $2', [req.user.id, String((req.body || {}).code || '').toLowerCase()]);
+    res.json({ ok: true });
+  }));
+  api.get('/me/history', need, wrap(async (req, res) => {
+    res.json({ items: (await q('SELECT room, joined_at, left_at FROM history WHERE user_id = $1 ORDER BY joined_at DESC LIMIT 50', [req.user.id])).rows });
+  }));
+  api.get('/me/export', need, wrap(async (req, res) => { // direito de acesso aos dados (LGPD)
+    const u = req.user, fav = (await q('SELECT room, created_at FROM favorites WHERE user_id = $1', [u.id])).rows;
+    const his = (await q('SELECT room, joined_at, left_at FROM history WHERE user_id = $1 ORDER BY joined_at DESC LIMIT 5000', [u.id])).rows;
+    res.set('Content-Disposition', 'attachment; filename="cine-sofa-meus-dados.json"');
+    res.json({ conta: { usuario: u.username, email: u.email, avatar: AVATARS[+u.avatar] || AVATARS[0], bio: u.bio, status: u.status, mensagens_enviadas: u.msg_count, criada_em: u.created_at }, favoritas: fav, historico: his });
+  }));
+  api.delete('/me', need, wrap(async (req, res) => { // exclusao da conta (LGPD)
+    if (!limitIp(req.ip, 'del', 5, 600000)) return res.status(429).json({ error: 'Muitas tentativas. Espere alguns minutos.' });
+    if (!(await checkPw(String((req.body || {}).password || '').slice(0, 128), req.user.pass_hash))) return res.status(401).json({ error: 'Senha incorreta.' });
+    for (const t of ['sessions', 'favorites', 'history']) await q('DELETE FROM ' + t + ' WHERE user_id = $1', [req.user.id]);
+    await q('DELETE FROM users WHERE id = $1', [req.user.id]);
+    clearCookie(res); res.json({ ok: true });
+  }));
+  api.use((err, req, res, next) => res.status(400).json({ error: 'Requisição inválida.' }));
+  app.use('/api', api);
+
+  io.use(async (socket, next) => {
+    try { await ready; socket.user = await userFromCookie(socket.handshake.headers.cookie); } catch (e) {}
+    next();
+  });
 
 io.on('connection', s => {
   s.use(([ev], next) => {
@@ -90,7 +236,7 @@ io.on('connection', s => {
     }
     if (!ex && Object.keys(rooms).length >= MAX_ROOMS) return s.emit('busy');
     if (ex && users(room).length >= MAX_USERS) return s.emit('busy');
-    s.name = uniqueName(room, cleanName(name));
+    s.name = uniqueName(room, s.user ? s.user.username : cleanName(name));
     s.room = room; s.join(room);
     const r = (rooms[room] = ex || {
       state: null, host: s.id, locked: false, chat: [], queue: [], poll: [], pass: pass ? hash(pass) : null,
@@ -99,13 +245,15 @@ io.on('connection', s => {
     let state = r.state;
     if (state && state.playing) state = { ...state, time: state.time + (Date.now() - state.at) / 1000 };
     s.emit('joined', { id: s.id, state, users: users(room), host: r.host, locked: r.locked, chat: r.chat, queue: r.queue, poll: r.poll, quick: r.quick ? qv(r) : null, voice: [...r.voice] });
-    s.to(room).emit('user-joined', { id: s.id, name: s.name });
+    s.to(room).emit('user-joined', { id: s.id, name: s.name, av: s.user ? AVATARS[+s.user.avatar] || AVATARS[0] : '', acct: !!s.user });
+    if (s.user && pool) pool.query('INSERT INTO history(user_id, room) VALUES($1, $2) RETURNING id', [s.user.id, room]).then(r => { s.hid = r.rows[0].id; }).catch(() => {});
   });
 
   s.on('chat', t => {
     const r = rooms[s.room]; t = String(t || '').trim().slice(0, 500);
     if (!r || !t) return;
-    const m = { name: s.name, text: t };
+    const m = { name: s.name, text: t, av: s.user ? AVATARS[+s.user.avatar] || AVATARS[0] : '' };
+    if (s.user) s.msgs = (s.msgs || 0) + 1;
     r.chat.push(m); r.stats.msgs[s.name] = (r.stats.msgs[s.name] || 0) + 1; r.chat = r.chat.slice(-30);
     io.to(s.room).emit('chat', m);
   });
@@ -237,6 +385,10 @@ io.on('connection', s => {
   });
 
   s.on('disconnect', () => {
+    if (pool && s.user) {
+      if (s.hid) pool.query('UPDATE history SET left_at = now() WHERE id = $1', [s.hid]).catch(() => {});
+      if (s.msgs) pool.query('UPDATE users SET msg_count = msg_count + $1 WHERE id = $2', [s.msgs, s.user.id]).catch(() => {});
+    }
     if (!s.room) return;
     s.to(s.room).emit('user-left', s.id);
     const r = rooms[s.room], left = users(s.room);
@@ -248,5 +400,18 @@ io.on('connection', s => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log('Cine Sofá rodando em http://localhost:' + PORT));
+
+  return server;
+}
+
+if (require.main === module) {
+  let pool = null;
+  const url = process.env.DATABASE_URL;
+  if (url && Pool) {
+    pool = new Pool({ connectionString: url, ssl: /localhost|127\.0\.0\.1/.test(url) ? false : { rejectUnauthorized: false }, max: 5 });
+    pool.on('error', e => console.error('pg:', e.message));
+  } else console.log('Contas desativadas (sem DATABASE_URL ou sem o pacote pg).');
+  const PORT = process.env.PORT || 3000;
+  build(pool).listen(PORT, () => console.log('Cine Sofá rodando em http://localhost:' + PORT));
+}
+module.exports = build;
