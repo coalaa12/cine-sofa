@@ -9,94 +9,147 @@
 <meta property="og:description" content="Entre na sala e veja o filme junto com a galera.">
 <meta property="og:image" content="__ORIGIN__/icon-512.png">
 <meta property="og:type" content="website">
-<meta name="theme-color" content="#d62839">
+<meta name="theme-color" content="#09090F">
 <link rel="icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
-:root{--bg:#0d0809;--panel:#1a1012;--line:#3b1c20;--ink:#f7efef;--mute:#b79d9f;--lamp:#d62839;--hi:#ff6b78;--red:#9b1c2a;--nl:68%}
+:root{--bg:#09090F;--panel:#12121C;--card:#191927;--line:#2a2a40;--ink:#F8FAFC;--mute:#9292A5;--lamp:#8B5CF6;--blue:#5865F2;--hi:#B49CFB;--red:#b4233a;--nl:68%}
+html[data-theme=azul]{--bg:#070d1f;--panel:#0e1730;--card:#14203f;--line:#243461;--lamp:#3b82f6;--hi:#7fb0ff}
+html[data-theme=claro]{--bg:#f5f4fb;--panel:#fff;--card:#fff;--line:#ddd8ee;--ink:#17141f;--mute:#6a6580;--lamp:#6d3fe0;--hi:#5b34c2;--nl:36%}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
-h1{font:700 clamp(2.4rem,7vw,4.5rem)/1 Georgia,"Times New Roman",serif;margin:0 0 .4em;letter-spacing:-.02em;padding-left:.35em;border-left:.12em solid var(--lamp)}
-button,input{font:inherit;color:inherit}
-button{background:var(--lamp);color:#fff;border:0;border-radius:8px;padding:.6em 1em;font-weight:600;cursor:pointer}
-button.sec{background:transparent;color:var(--ink);border:1px solid var(--line)}
-button.sec:hover{border-color:var(--lamp)}
-button:hover{filter:brightness(1.1)}
-:focus-visible{outline:3px solid var(--lamp);outline-offset:2px}
-input{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:.6em .8em;width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,"Segoe UI",system-ui,sans-serif}
 .hide{display:none!important}
-#lobby{min-height:100vh;display:grid;place-content:center;padding:24px;max-width:520px;margin:auto}
-#lobby p{color:var(--mute);margin:0 0 1.5em}
-#lobby label{display:block;margin:0 0 1em;color:var(--mute);font-size:.9rem}
-.row{display:flex;gap:10px;flex-wrap:wrap}
-.row>*{flex:1}
-#room{display:grid;grid-template-columns:1fr 330px;gap:16px;padding:16px;min-height:100vh}
+i{display:inline-flex;font-style:normal}
+:focus-visible{outline:3px solid var(--hi);outline-offset:2px}
+button{font:inherit;color:#fff;background:linear-gradient(135deg,var(--lamp),var(--blue));border:0;border-radius:10px;padding:.6em 1.05em;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:transform .15s,filter .15s,border-color .15s}
+button:hover{filter:brightness(1.12);transform:translateY(-1px)}
+button.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+button.sec:hover{border-color:var(--lamp)}
+button:disabled{opacity:.4;cursor:not-allowed;transform:none}
+input,select{font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:.6em .8em;width:100%}
+select{width:auto}input:focus{border-color:var(--lamp)}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:.01s!important}}
+/* ---- pagina inicial ---- */
+#lobby{min-height:100vh;background:radial-gradient(60% 50% at 15% 0,#8b5cf633,transparent),radial-gradient(45% 45% at 90% 8%,#5865f233,transparent)}
+#nav{display:flex;align-items:center;gap:16px;padding:12px clamp(16px,4vw,48px);border-bottom:1px solid var(--line);background:color-mix(in srgb,var(--bg) 85%,transparent);backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:1.15rem}.logo svg{color:var(--lamp)}
+.search{flex:1;max-width:380px;margin-left:auto;display:flex;align-items:center;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:0 .7em;color:var(--mute)}
+.search input{border:0;background:transparent;padding:.55em 0}
+.pill{font-size:.8rem;padding:.25em .75em;border-radius:99px;background:var(--card);border:1px solid var(--line);color:var(--mute);white-space:nowrap}
+.pill.on{color:#4ade80}
+.pill.load{background:linear-gradient(90deg,var(--card) 25%,var(--line) 50%,var(--card) 75%);background-size:200% 100%;animation:sk 1.4s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+.hero{padding:clamp(32px,8vw,88px) clamp(16px,4vw,48px) 28px;max-width:1100px;margin:auto}
+.hero h1{font-size:clamp(2.2rem,6vw,4rem);line-height:1.05;margin:0 0 .4em;letter-spacing:-.03em}
+.hero h1 span{background:linear-gradient(90deg,var(--hi),var(--blue));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--mute);max-width:46ch;margin:0 0 1.5em;font-size:1.1rem}
+.form{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:560px;display:grid;gap:12px;box-shadow:0 20px 60px #8b5cf622}
+.form label{display:block;color:var(--mute);font-size:.85rem}.form label input{margin-top:4px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+.rail,.muted{max-width:1100px;margin:auto;padding:16px clamp(16px,4vw,48px)}
+.muted{color:var(--mute)}
+.rail h2{font-size:1.05rem;display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.rc{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px;transition:transform .2s,border-color .2s}
+.rc:hover{transform:translateY(-3px);border-color:var(--lamp)}
+.rc b{display:block;overflow-wrap:anywhere}.rc small{color:var(--mute)}
+.rb{display:flex;gap:6px;align-items:center}.rb .go{margin-left:auto}
+.ic{background:transparent;color:var(--ink);border:1px solid var(--line);padding:.4em;border-radius:8px}
+/* ---- sala ---- */
+#room{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;padding:16px;min-height:100vh;max-width:1500px;margin:auto}
 .top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
-.top b{font:700 1.3rem Georgia,serif}
-.top span{color:var(--mute)}
-.top .sp{flex:1}
-.stage{position:relative;background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;border:2px solid var(--lamp)}
+.top b{font-weight:700;font-size:1.25rem}.top span{color:var(--mute)}.top .sp{flex:1}
+.stage{position:relative;background:#000;border-radius:16px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;border:1px solid var(--line);box-shadow:0 20px 60px #8b5cf626}
 .stage video{width:100%;height:100%;background:#000}
 #ytbox{width:100%;height:100%}#ytbox iframe{width:100%;height:100%;border:0}
-.empty{color:var(--mute);padding:24px;text-align:center}
-.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-.note{margin-top:12px;padding:12px;border-radius:8px;background:var(--panel);border-left:4px solid var(--lamp)}
-aside{background:var(--panel);border-radius:12px;display:flex;flex-direction:column;height:calc(100vh - 32px);border:1px solid var(--line)}
+.empty{color:#9292A5;padding:24px;text-align:center}
+#reacts{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+#reacts button{background:var(--card);border:1px solid var(--line);font-size:1.3rem;padding:.3em .6em;color:var(--ink)}
+#reacts button.sf{font-size:.9rem}
+#tabs{display:flex;gap:4px;margin-top:12px;border-bottom:1px solid var(--line);overflow-x:auto}
+#tabs button{background:transparent;color:var(--mute);border-radius:8px 8px 0 0;padding:.5em .9em;white-space:nowrap}
+#tabs button.on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--lamp)}
+.tools{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+.note{margin-top:12px;padding:12px 14px;border-radius:12px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--lamp)}
+.note div,#quick div,#recap div{margin-top:6px}
+aside{background:var(--panel);border-radius:16px;display:flex;flex-direction:column;height:calc(100vh - 32px);border:1px solid var(--line);position:sticky;top:16px}
 #who{padding:12px 14px;border-bottom:1px solid var(--line);color:var(--mute);font-size:.9rem}
 #log{flex:1;overflow:auto;padding:12px 14px}
-#log p{margin:0 0 .6em;overflow-wrap:anywhere}
-#log b{color:var(--hi)}
-#log i{color:var(--mute)}
-#chat{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
-#toast{color:#fff;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--red);padding:.6em 1em;border-radius:8px}
-select{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:.5em}
+#log p{margin:0 0 .6em;overflow-wrap:anywhere}#log i{color:var(--mute)}
 #log mark{background:var(--lamp);color:#fff;border-radius:4px;padding:0 .2em}
+#chat{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line)}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--red);color:#fff;padding:.6em 1em;border-radius:10px;z-index:50}
+#acct{display:flex;gap:8px;align-items:center}
+#modal{position:fixed;inset:0;background:#000a;display:grid;place-items:center;padding:16px;z-index:60}
+.mbox{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;width:min(520px,100%);max-height:90vh;overflow:auto}
+#mclose{position:absolute;top:10px;right:10px}
+.mbox h3{margin:0 40px 12px 0}.mbox label{display:block;color:var(--mute);font-size:.85rem;margin-bottom:10px}.mbox label input,.mbox textarea{margin-top:4px}
+textarea{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:.6em .8em;width:100%;resize:vertical}
+.err{color:#ff8a9b;min-height:1.2em;margin:.4em 0}.small{color:var(--mute);font-size:.8rem;display:block;margin:6px 0}
+.avs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.avs button{font-size:1.3rem;padding:.2em .4em}
+.avs button.on{border-color:var(--lamp);box-shadow:0 0 0 2px var(--lamp)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:0 0 14px}
+.stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px;font-size:.8rem;color:var(--mute);text-align:center}.stats b{display:block;font-size:1.3rem;color:var(--ink)}
+.mt{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.mt .sec.on{background:linear-gradient(135deg,var(--lamp),var(--blue));color:#fff;border-color:transparent}
+.hl{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}.hl small{color:var(--mute)}
+button.danger{background:var(--red)}
+a.btn{display:inline-flex;align-items:center;justify-content:center;padding:.6em 1.05em;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--ink);text-decoration:none;font-weight:600}
+.x{padding:0 .4em;background:transparent;border:1px solid var(--line);color:var(--ink);font-size:.8rem;border-radius:6px}
+.fl{position:absolute;bottom:8%;font-size:2.2rem;animation:up 2.5s ease-out forwards;pointer-events:none}
+@keyframes up{to{transform:translateY(-70%);opacity:0}}
+#ov{position:absolute;left:10px;bottom:10px;max-width:65%;pointer-events:none;display:flex;flex-direction:column;gap:4px;text-align:left}
+#ov p{margin:0;background:#000c;color:#fff;padding:.2em .6em;border-radius:6px;font-size:.95rem}
 #brk{font-size:1.2rem;text-align:center}#brk b{font-size:2rem}
 #bingo .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px}
 #bingo .c{background:var(--bg);border:1px solid var(--line);color:var(--ink);font-size:.8rem;padding:.5em;min-height:3.4em;font-weight:400}
 #bingo .c.on{background:var(--lamp);color:#fff}
-#quick div,#recap div{margin-top:6px}
-#tabs{display:flex;gap:4px;margin-top:12px;border-bottom:1px solid var(--line);overflow-x:auto}
-#tabs button{background:transparent;color:var(--mute);border-radius:8px 8px 0 0;padding:.5em .9em;white-space:nowrap}
-#tabs button.on{color:var(--ink);box-shadow:inset 0 -3px 0 var(--lamp)}
-.tools{margin-top:10px}
-@media(max-width:860px){.tools button,.tools select{flex:1 1 45%}}
-button:disabled{opacity:.4;cursor:not-allowed}
-#reacts{display:flex;gap:8px;margin-top:12px}
-#reacts button.sf{font-size:.9rem}
-#ov{position:absolute;left:10px;bottom:10px;max-width:65%;pointer-events:none;display:flex;flex-direction:column;gap:4px;text-align:left}
-#ov p{margin:0;background:#000c;color:#fff;padding:.2em .6em;border-radius:6px;font-size:.95rem}
-#poll div{margin-top:6px}
-#reacts button{background:var(--panel);border:1px solid var(--line);font-size:1.3rem;padding:.3em .6em}
-.fl{position:absolute;bottom:8%;font-size:2.2rem;animation:up 2.5s ease-out forwards;pointer-events:none}
-@keyframes up{to{transform:translateY(-70%);opacity:0}}
-@media(prefers-reduced-motion:reduce){.fl{animation-duration:.01s}}
-.x{padding:0 .4em;background:transparent;border:1px solid var(--line);color:var(--ink);font-size:.8rem;border-radius:6px}
 .cine aside,.cine .top{display:none}.cine #room{grid-template-columns:1fr}.cine .stage{max-height:82vh;margin:auto}
-html[data-theme=azul]{--bg:#0a1230;--panel:#111c44;--line:#25346b;--ink:#eaf0ff;--mute:#93a4d6;--lamp:#2f7bff;--hi:#6fa8ff}
-html[data-theme=claro]{--bg:#f6f3f0;--panel:#fff;--line:#d9d2cc;--ink:#1d1517;--mute:#6f6165;--lamp:#c4202f;--hi:#b01c2a;--nl:36%}
 @media (pointer:coarse){button,select,input{min-height:44px}#tabs button{padding:.7em 1.1em}#reacts button{padding:.4em .8em}.x{min-height:38px;min-width:38px}}
-@media(max-width:860px){#room{grid-template-columns:1fr}aside{height:420px}}
+@media(max-width:860px){
+#room{display:flex;flex-direction:column;gap:10px;padding:10px}
+#room>section{display:contents}
+.stage{position:sticky;top:0;z-index:20;border-radius:12px}
+aside{position:static;height:auto;min-height:55vh}#log{max-height:45vh}
+.tools button,.tools select{flex:1 1 45%}
+#nav{flex-wrap:wrap}.search{order:3;max-width:none;flex-basis:100%;margin-left:0}}
 </style>
 </head>
 <body>
 
-<main id="lobby">
-  <h1>Cine Sofá</h1>
-  <p>Assista com os amigos, cada um no seu sofá. Entre numa sala ou crie uma nova e mande o link.</p>
-  <label>Seu nome<input id="name" maxlength="24" autocomplete="nickname"></label>
-  <label>Código da sala<input id="code" maxlength="20" placeholder="ex.: noite-de-filme"></label>
-  <label>Senha da sala (opcional)<input id="pass" maxlength="30" autocomplete="off"></label>
-  <div class="row">
-    <button id="enter">Entrar na sala</button>
-    <button id="create" class="sec">Criar sala nova</button>
-  </div>
-</main>
+<div id="lobby">
+  <header id="nav">
+    <div class="logo"><i data-ic="film"></i> Cine Sofá</div>
+    <label class="search"><i data-ic="search"></i><input id="find" placeholder="Buscar nas suas salas" aria-label="Buscar nas suas salas"></label>
+    <span id="conn" class="pill load">Conectando ao servidor…</span>
+    <div id="acct" class="hide"></div>
+  </header>
+  <section class="hero">
+    <h1>Cinema com os amigos,<br><span>cada um no seu sofá.</span></h1>
+    <p>Vídeo sincronizado, chat, áudio e reações. Crie uma sala e mande o link.</p>
+    <div class="form">
+      <label>Seu nome<input id="name" maxlength="24" autocomplete="nickname"></label>
+      <label>Código da sala<input id="code" maxlength="30" placeholder="ex.: noite-de-filme"></label>
+      <label>Senha da sala (opcional)<input id="pass" maxlength="30" autocomplete="off"></label>
+      <div class="row">
+        <button id="enter"><i data-ic="arrow"></i> Entrar na sala</button>
+        <button id="create" class="sec"><i data-ic="plus"></i> Criar sala nova</button>
+      </div>
+    </div>
+  </section>
+  <section id="favs" class="rail hide"><h2><i data-ic="star"></i> Favoritas</h2><div class="cards"></div></section>
+  <section id="recent" class="rail hide"><h2>Salas recentes</h2><div class="cards"></div></section>
+  <p id="homeEmpty" class="muted"></p>
+</div>
 
 <div id="room" class="hide">
   <section>
     <div class="top">
       <b id="roomName"></b><span id="count"></span><span class="sp"></span>
-      <button id="invite" class="sec">Copiar convite</button>
+      <button id="bFav" class="sec ic" title="Favoritar sala" aria-label="Favoritar sala"></button>
+      <button id="invite" class="sec"><i data-ic="link"></i> Copiar convite</button>
+      <button id="bLeave" class="sec"><i data-ic="out"></i> Sair</button>
     </div>
     <div class="stage">
       <video id="v" controls playsinline class="hide"></video>
@@ -158,13 +211,14 @@ html[data-theme=claro]{--bg:#f6f3f0;--panel:#fff;--line:#d9d2cc;--ink:#1d1517;--
 </div>
 
 <div id="toast" class="hide" role="status"></div>
+<div id="modal" class="hide"><div class="mbox" role="dialog" aria-modal="true"><button class="ic" id="mclose" aria-label="Fechar">✕</button><div id="mbody"></div></div></div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const sock = io();
 const v = $('v'), scr = $('s');
-const lag = new Set(), muted = new Set(), vin = new Set();
+const lag = new Set(), muted = new Set(), vin = new Set(), meta = {};
 let joinedOnce = false, joinInfo = null;
 let hostId = null, locked = false, users = {}, peers = {}, stream = null, applying = false, wantFile = false, pendingCtl = null, room = '';
 
@@ -184,7 +238,7 @@ const slug = () => Math.random().toString(36).slice(2, 7);
 $('create').onclick = () => { $('code').value = slug(); join(); };
 $('enter').onclick = join;
 function join() {
-  const name = $('name').value.trim(), code = $('code').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_-]+/g, '-').slice(0, 30);
+  const name = $('name').value.trim(), code = $('code').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 30);
   if (!name) { $('name').focus(); return toast('Digite seu nome'); }
   if (!code) { $('code').focus(); return toast('Digite o código da sala'); }
   try { localStorage.setItem('cs-name', name); } catch (e) {}
@@ -196,9 +250,9 @@ function join() {
 sock.on('joined', ({ id, state, users: list, host, locked: lk, chat, queue, poll, quick: qk, voice }) => {
   joinedOnce = true; (voice || []).forEach(i => vin.add(i));
   hostId = host; locked = lk; $('log').innerHTML = ''; (chat || []).forEach(showMsg); renderQueue(queue || []); renderPoll(poll || []); renderQuick(qk);
-  users = {}; list.forEach(u => users[u.id] = u.name);
+  users = {}; list.forEach(u => { users[u.id] = u.name; meta[u.id] = { av: u.av, acct: u.acct }; });
   $('lobby').classList.add('hide'); $('room').classList.remove('hide');
-  $('roomName').textContent = 'Sala ' + room;
+  $('roomName').textContent = 'Sala ' + room; remember(room); syncFav();
   renderUsers(); applyLock();
   if (state && state.src) { pendingCtl = state; applySource(state.src); }
   if (stream) { sock.emit('share-start'); Object.keys(users).forEach(i => i !== sock.id && call(i)); }
@@ -210,7 +264,7 @@ $('invite').onclick = () => navigator.clipboard.writeText(location.origin + '/?s
 function renderUsers() {
   const me = sock.id === hostId, n = Object.keys(users).length;
   $('count').textContent = n + (n === 1 ? ' pessoa' : ' pessoas');
-  $('who').innerHTML = Object.entries(users).map(([id, nm]) => (id === hostId ? '👑 ' : '') + (vin.has(id) ? '🎙️ ' : '') + (lag.has(id) ? '⚠️ ' : '') + esc(nm) +
+  $('who').innerHTML = Object.entries(users).map(([id, nm]) => (id === hostId ? '👑 ' : '') + (vin.has(id) ? '🎙️ ' : '') + (lag.has(id) ? '⚠️ ' : '') + (meta[id] && meta[id].av ? esc(meta[id].av) + ' ' : '') + esc(nm) + (meta[id] && meta[id].acct ? ' <small title="Conta cadastrada">✓</small>' : '') +
     (id !== sock.id ? ' <button class="x" data-m="' + esc(nm) + '" title="Silenciar no chat">' + (muted.has(nm) ? '🔈' : '🔇') + '</button>' : '') +
     (me && id !== sock.id ? ' <button class="x" data-h="' + id + '" title="Passar anfitrião">👑</button> <button class="x" data-id="' + id + '" title="Remover da sala">✕</button>' : '')).join(' · ');
 }
@@ -229,7 +283,7 @@ sock.on('disconnect', () => { if (joinedOnce) toast('Conexão perdida. Tentando 
 sock.on('share-denied', () => { toast('Outra pessoa já está transmitindo, ou os controles estão bloqueados.'); stopShare(); });
 sock.on('kicked', () => { alert('Você foi removido da sala.'); location.href = location.pathname; });
 sock.on('user-joined', u => {
-  users[u.id] = u.name; renderUsers(); log('<i>' + esc(u.name) + ' entrou</i>');
+  users[u.id] = u.name; meta[u.id] = { av: u.av, acct: u.acct }; renderUsers(); log('<i>' + esc(u.name) + ' entrou</i>');
   if (stream) call(u.id);
 });
 sock.on('user-left', id => {
@@ -251,7 +305,7 @@ function ding() {
 function showMsg(m) {
   if (muted.has(m.name)) return;
   const my = $('name').value.trim(), hit = my && m.text.toLowerCase().includes('@' + my.toLowerCase());
-  const h = '<b style="color:hsl(' + hue(m.name) + ' 75% var(--nl))">' + esc(m.name) + ':</b> ' + (hit ? '<mark>' + esc(m.text) + '</mark>' : esc(m.text));
+  const h = '<b style="color:hsl(' + hue(m.name) + ' 75% var(--nl))">' + (m.av ? esc(m.av) + ' ' : '') + esc(m.name) + ':</b> ' + (hit ? '<mark>' + esc(m.text) + '</mark>' : esc(m.text));
   log(h);
   if (hit && m.name !== my) { try { ding(); } catch (e) {} }
   if (ovOn) { const p = document.createElement('p'); p.innerHTML = h; $('ov').appendChild(p); setTimeout(() => p.remove(), 7000); }
@@ -604,6 +658,188 @@ function checkAudio() {
 }
 let chk = '';
 v.addEventListener('playing', () => { if (chk === v.src) return; chk = v.src; setTimeout(checkAudio, 5000); });
+
+/* ---------- Pagina inicial: icones, historico e favoritos (salvos so neste navegador) ---------- */
+const ICONS = {
+  film: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M7 3v18M3 7.5h4M3 12h18M3 16.5h4M17 3v18M17 7.5h4M17 16.5h4"/>',
+  search: '<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/>',
+  plus: '<path d="M5 12h14M12 5v14"/>',
+  arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+};
+const ic = (n, fill) => '<svg width="18" height="18" viewBox="0 0 24 24" fill="' + (fill ? 'currentColor' : 'none') + '" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[n] + '</svg>';
+document.querySelectorAll('[data-ic]').forEach(e => e.innerHTML = ic(e.dataset.ic));
+
+const getRooms = () => { try { return JSON.parse(localStorage.getItem('cs-rooms')) || []; } catch (e) { return []; } };
+const setRooms = a => { try { localStorage.setItem('cs-rooms', JSON.stringify(a.slice(0, 24))); } catch (e) {} };
+function remember(code) {
+  const old = getRooms().find(r => r.code === code);
+  setRooms([{ code, last: Date.now(), fav: old ? old.fav : false }, ...getRooms().filter(r => r.code !== code)]);
+}
+function ago(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? 'agora há pouco' : m < 60 ? 'há ' + m + ' min' : m < 1440 ? 'há ' + Math.round(m / 60) + ' h' : 'há ' + Math.round(m / 1440) + ' d';
+}
+function renderHome() {
+  const q = $('find').value.trim().toLowerCase(), all = getRooms(), list = all.filter(r => r.code.includes(q));
+  const card = r => '<div class="rc"><div><b>' + esc(r.code) + '</b><small>' + (r.last ? ago(r.last) : 'favorita da conta') + '</small></div><div class="rb">' +
+    '<button class="ic" data-fav="' + esc(r.code) + '" title="Favoritar" aria-label="Favoritar">' + ic('star', r.fav) + '</button>' +
+    '<button class="ic" data-del="' + esc(r.code) + '" title="Remover do histórico" aria-label="Remover do histórico">' + ic('x') + '</button>' +
+    '<button class="go" data-go="' + esc(r.code) + '">Entrar ' + ic('arrow') + '</button></div></div>';
+  const fill = (id, arr) => { const el = $(id); el.classList.toggle('hide', !arr.length); el.querySelector('.cards').innerHTML = arr.map(card).join(''); };
+  fill('favs', list.filter(r => r.fav)); fill('recent', list.filter(r => !r.fav));
+  $('homeEmpty').classList.toggle('hide', !!list.length);
+  $('homeEmpty').textContent = all.length ? 'Nenhuma sala encontrada para essa busca.' : 'As salas que você entrar aparecem aqui, só neste navegador.';
+}
+$('find').oninput = renderHome;
+$('lobby').addEventListener('click', e => {
+  const b = e.target.closest('[data-go],[data-fav],[data-del]'); if (!b) return;
+  const a = getRooms();
+  if (b.dataset.go) { $('code').value = b.dataset.go; if ($('name').value.trim()) join(); else { $('name').focus(); toast('Digite seu nome para entrar.'); } return; }
+  if (b.dataset.fav) {
+    const r = a.find(x => x.code === b.dataset.fav);
+    if (r) { r.fav = !r.fav; if (AUTH.user) api(r.fav ? 'POST' : 'DELETE', '/api/me/favorites', { code: r.code }).catch(() => {}); }
+    setRooms(a);
+  }
+  if (b.dataset.del) { if (AUTH.user) api('DELETE', '/api/me/favorites', { code: b.dataset.del }).catch(() => {}); setRooms(a.filter(x => x.code !== b.dataset.del)); }
+  renderHome();
+});
+renderHome();
+
+function syncFav() {
+  const r = getRooms().find(x => x.code === room), on = !!(r && r.fav);
+  $('bFav').innerHTML = ic('star', on); $('bFav').setAttribute('aria-pressed', String(on));
+}
+$('bFav').onclick = () => {
+  const a = getRooms(), r = a.find(x => x.code === room); if (!r) return;
+  r.fav = !r.fav; setRooms(a); syncFav();
+  if (AUTH.user) api(r.fav ? 'POST' : 'DELETE', '/api/me/favorites', { code: r.code }).catch(() => {});
+  toast(r.fav ? 'Sala adicionada aos favoritos.' : 'Sala removida dos favoritos.');
+};
+$('bLeave').onclick = () => { location.href = location.pathname; };
+
+function setConn(st) {
+  const c = $('conn'); c.className = 'pill ' + (st === 'on' ? 'on' : 'load');
+  c.textContent = st === 'on' ? '● Online' : st === 'off' ? 'Reconectando…' : 'Conectando ao servidor…';
+}
+if (sock.connected) setConn('on');
+sock.on('connect', () => setConn('on'));
+sock.on('disconnect', () => setConn('off'));
+setTimeout(() => { if (!sock.connected) $('conn').textContent = 'Acordando o servidor… pode levar até 1 minuto'; }, 6000);
+
+/* ---------- Contas: cadastro, login, perfil, historico e favoritas ---------- */
+const AUTH = { on: false, user: null, avatars: [] };
+async function api(method, path, body) {
+  const r = await fetch(path, { method, headers: { 'Content-Type': 'application/json', 'X-CS': '1' }, body: body ? JSON.stringify(body) : undefined });
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) throw new Error(j.error || 'Erro ' + r.status);
+  return j;
+}
+const reconnect = () => { sock.disconnect(); sock.connect(); };
+const modal = h => { $('mbody').innerHTML = h; $('modal').classList.remove('hide'); };
+const closeModal = () => $('modal').classList.add('hide');
+$('mclose').onclick = closeModal;
+$('modal').onclick = e => { if (e.target === $('modal')) closeModal(); };
+addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+function renderAcct() {
+  const el = $('acct'); el.classList.toggle('hide', !AUTH.on);
+  if (!AUTH.on) return;
+  el.innerHTML = AUTH.user ? '<button class="sec" id="bProfile">' + esc(AUTH.user.avatar) + ' ' + esc(AUTH.user.username) + '</button>'
+    : '<button class="sec" id="bLogin">Entrar</button><button id="bSignup">Criar conta</button>';
+  $('name').readOnly = !!AUTH.user; if (AUTH.user) $('name').value = AUTH.user.username;
+}
+$('acct').onclick = e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.id === 'bLogin') showAuth('login'); else if (b.id === 'bSignup') showAuth('reg'); else if (b.id === 'bProfile') showProfile('perfil');
+};
+function showAuth(mode) {
+  const reg = mode === 'reg';
+  modal('<h3>' + (reg ? 'Criar conta' : 'Entrar') + '</h3><form id="aform">' +
+    (reg ? '<label>Nome de usuário<input name="username" maxlength="20" autocomplete="username" required></label><label>Email<input name="email" type="email" autocomplete="email" required></label>'
+         : '<label>Usuário ou email<input name="login" autocomplete="username" required></label>') +
+    '<label>Senha<input name="password" type="password" minlength="' + (reg ? 8 : 1) + '" maxlength="128" autocomplete="' + (reg ? 'new-password' : 'current-password') + '" required></label>' +
+    (reg ? '<span class="small">Guardamos seu email e uma versão protegida da senha. No perfil você pode exportar ou excluir seus dados quando quiser.</span>' : '') +
+    '<p class="err" id="merr" role="alert"></p><div class="row"><button>' + (reg ? 'Criar conta' : 'Entrar') + '</button><button type="button" class="sec" id="mswitch">' + (reg ? 'Já tenho conta' : 'Criar conta') + '</button></div></form>');
+  $('mswitch').onclick = () => showAuth(reg ? 'login' : 'reg');
+  $('aform').onsubmit = async e => {
+    e.preventDefault();
+    try {
+      const r = await api('POST', reg ? '/api/register' : '/api/login', Object.fromEntries(new FormData(e.target)));
+      AUTH.user = r.user; closeModal(); renderAcct(); reconnect(); await pullFavs(); toast('Olá, ' + r.user.username + '!');
+    } catch (err) { $('merr').textContent = err.message; }
+  };
+  setTimeout(() => $('aform').querySelector('input').focus(), 0);
+}
+async function pullFavs() {
+  try {
+    const srv = (await api('GET', '/api/me/favorites')).rooms, a = getRooms();
+    srv.forEach(c => { const r = a.find(x => x.code === c); if (r) r.fav = true; else a.push({ code: c, last: 0, fav: true }); });
+    for (const r of a) if (r.fav && !srv.includes(r.code)) await api('POST', '/api/me/favorites', { code: r.code }).catch(() => {});
+    setRooms(a); renderHome();
+  } catch (e) {}
+}
+async function showProfile(tab) {
+  let me; try { me = await api('GET', '/api/me'); } catch (e) { AUTH.user = null; renderAcct(); return showAuth('login'); }
+  const u = me.user, st = me.stats, T = { perfil: 'Perfil', historico: 'Histórico', favoritas: 'Favoritas', conta: 'Conta' };
+  const head = '<h3>' + esc(u.avatar) + ' ' + esc(u.username) + '</h3><div class="mt">' + Object.keys(T).map(t => '<button class="sec' + (t === tab ? ' on' : '') + '" data-t="' + t + '">' + T[t] + '</button>').join('') + '</div>';
+  let body = '';
+  if (tab === 'perfil') {
+    body = '<div class="stats"><div><b>' + st.sessions + '</b>sessões</div><div><b>' + st.minutes + '</b>minutos</div><div><b>' + st.rooms + '</b>salas</div><div><b>' + st.messages + '</b>mensagens</div></div>' +
+      '<form id="pform"><div class="avs" role="radiogroup" aria-label="Avatar">' + AUTH.avatars.map((a, i) => '<button type="button" class="sec' + (i === u.avatarIdx ? ' on' : '') + '" data-av="' + i + '" role="radio" aria-checked="' + (i === u.avatarIdx) + '">' + esc(a) + '</button>').join('') + '</div>' +
+      '<label>Status<input name="status" maxlength="40" value="' + esc(u.status) + '" placeholder="ex.: maratonando séries"></label>' +
+      '<label>Bio<textarea name="bio" rows="3" maxlength="160">' + esc(u.bio) + '</textarea></label><p class="err" id="merr"></p><button>Salvar perfil</button></form>';
+  } else if (tab === 'historico') {
+    const h = (await api('GET', '/api/me/history')).items;
+    body = h.length ? h.map(x => { const m = x.left_at ? Math.max(1, Math.round((new Date(x.left_at) - new Date(x.joined_at)) / 60000)) : null;
+      return '<div class="hl"><b>' + esc(x.room) + '</b><small>' + esc(new Date(x.joined_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })) + (m ? ' · ' + m + ' min' : '') + '</small></div>'; }).join('')
+      : '<p class="small">Seu histórico aparece aqui depois da primeira sessão com a conta logada.</p>';
+  } else if (tab === 'favoritas') {
+    const f = (await api('GET', '/api/me/favorites')).rooms;
+    body = f.length ? f.map(c => '<div class="hl"><b>' + esc(c) + '</b><span><button class="sec" data-go="' + esc(c) + '">Entrar</button> <button class="x" data-rm="' + esc(c) + '" aria-label="Remover">✕</button></span></div>').join('')
+      : '<p class="small">Nenhuma sala favorita ainda. Use a estrela dentro da sala ou na página inicial.</p>';
+  } else {
+    body = '<p>Email: <b>' + esc(u.email) + '</b></p><p class="small">Conta criada em ' + esc(new Date(u.since).toLocaleDateString('pt-BR')) + '</p>' +
+      '<div class="row"><a class="btn" href="/api/me/export" download>Exportar meus dados</a><button class="sec" id="bout">Sair da conta</button></div>' +
+      '<p class="small" style="margin-top:18px">Excluir a conta apaga seu perfil, histórico e favoritas. Não dá para desfazer.</p><button class="danger" id="bdel">Excluir minha conta</button>';
+  }
+  modal(head + body);
+  $('mbody').querySelectorAll('[data-t]').forEach(b => b.onclick = () => showProfile(b.dataset.t));
+  if (tab === 'perfil') {
+    let sel = u.avatarIdx;
+    $('mbody').querySelectorAll('[data-av]').forEach(b => b.onclick = () => { sel = +b.dataset.av; $('mbody').querySelectorAll('[data-av]').forEach(x => x.classList.toggle('on', x === b)); });
+    $('pform').onsubmit = async e => {
+      e.preventDefault(); const f = Object.fromEntries(new FormData(e.target));
+      try { AUTH.user = (await api('PATCH', '/api/me', { avatar: sel, bio: f.bio, status: f.status })).user; renderAcct(); reconnect(); toast('Perfil salvo.'); showProfile('perfil'); }
+      catch (err) { $('merr').textContent = err.message; }
+    };
+  }
+  if (tab === 'favoritas') {
+    $('mbody').querySelectorAll('[data-go]').forEach(b => b.onclick = () => { closeModal(); $('code').value = b.dataset.go; join(); });
+    $('mbody').querySelectorAll('[data-rm]').forEach(b => b.onclick = async () => {
+      await api('DELETE', '/api/me/favorites', { code: b.dataset.rm }).catch(() => {});
+      setRooms(getRooms().map(r => r.code === b.dataset.rm ? { ...r, fav: false } : r)); renderHome(); showProfile('favoritas');
+    });
+  }
+  if (tab === 'conta') {
+    $('bout').onclick = async () => { await api('POST', '/api/logout', {}).catch(() => {}); AUTH.user = null; $('name').value = ''; closeModal(); renderAcct(); reconnect(); toast('Você saiu da conta.'); };
+    $('bdel').onclick = async () => {
+      const pw = prompt('Digite sua senha para confirmar a exclusão da conta:'); if (!pw) return;
+      try { await api('DELETE', '/api/me', { password: pw }); AUTH.user = null; $('name').value = ''; closeModal(); renderAcct(); reconnect(); toast('Conta excluída.'); }
+      catch (err) { toast(err.message); }
+    };
+  }
+}
+(async () => {
+  try {
+    const c = await api('GET', '/api/config'); AUTH.on = c.accounts; AUTH.avatars = c.avatars;
+    if (AUTH.on) { try { AUTH.user = (await api('GET', '/api/me')).user; } catch (e) {} }
+  } catch (e) {}
+  renderAcct(); if (AUTH.user) pullFavs();
+})();
 
 /* ---------- Transmitir arquivo (so o anfitriao precisa ter o filme) ---------- */
 let fileCast = false;
